@@ -8,7 +8,7 @@ public class CrossSection : MonoBehaviour
 {
     // Configuration
     [Range(0, 1)]
-    public float position = 0;
+    public float t = 0;
 
     [Range(3, 8)]
     public int numPoints = 3;
@@ -25,7 +25,7 @@ public class CrossSection : MonoBehaviour
     public Vector3[] GetPoints()
     {
         var meshFilter = GetMeshFilter();
-        var points = meshFilter.mesh.vertices;
+        var points = meshFilter.sharedMesh.vertices;
         return points;
     }
 
@@ -63,7 +63,7 @@ public class CrossSection : MonoBehaviour
     private void UpdatePosition()
     {
         var pathCreator = GetPathCreator();
-        var point = pathCreator.path.GetPointAtTime(position, EndOfPathInstruction.Stop);
+        var point = pathCreator.path.GetPointAtTime(t, EndOfPathInstruction.Stop);
         transform.position = point;
     }
 
@@ -101,7 +101,7 @@ public class CrossSection : MonoBehaviour
     private void UpdateDirection()
     {
         var pathCreator = GetPathCreator();
-        var direction = pathCreator.path.GetDirection(position, EndOfPathInstruction.Stop);
+        var direction = pathCreator.path.GetDirection(t, EndOfPathInstruction.Stop);
         transform.rotation = Quaternion.LookRotation(direction);
     }
 
