@@ -1,5 +1,9 @@
 using UnityEngine;
 using PathCreation;
+using System.Linq;
+using MinByExtension;
+using Vector3Extension;
+
 
 [ExecuteInEditMode]
 [RequireComponent(typeof(PathCreator))]
@@ -28,6 +32,11 @@ public class Extruder : MonoBehaviour
 
     private void Update()
     {
+        // CreateCombinedMesh();
+    }
+
+    private void CreateCombinedMesh()
+    {
         var pathCreator = GetPathCreator();
         var path = pathCreator.path;
         var crossSections = GetCrossSections();
@@ -38,18 +47,64 @@ public class Extruder : MonoBehaviour
         {
             // Get the point on the vertex path
             var point = path.GetPoint(i);
+            Gizmos.DrawSphere(point, 0.05f);
 
-            // Find the time t of the point
+            // Find the time t of the point on the path
             var t = path.GetClosestTimeOnPath(point);
 
-            // Find the cross sections that the point lies between
+            // Find the cross sections that the point lies between using t
             var (crossSection1, crossSection2, t2) = GetCrossSections(t);
 
-            // Find the shape of the point using the cross sections
-            var shape = ShapeInterpolator.GetShape(crossSection1.GetPoints(), crossSection2.GetPoints(), t2);
+            // Find the shape of the point using the cross sections using t2
+            var middleShape = ShapeInterpolator.GetShape(crossSection1.Get2DPoints(), crossSection2.Get2DPoints(), t2);
+
+            // Move the shape to the correct position on the path
+            // middleShape = middleShape.Select(v => v + point).ToArray();
+            foreach (var vertex in middleShape)
+            {
+                var p = vertex.To3DPoint(path, t);
+                Gizmos.DrawCube(p, Vector3.one * 0.1f);
+            }
+            // Debug.Log($"t: {t2}, c1: {crossSection1.GetPoints()[0]}, c2: {crossSection2.GetPoints()[0]}, middle: {middleShape[0]}");
 
             // We need to connect shape to the mesh we already have. Somehow.
+            // Find the shape with the most vertices. From has more vertices
+            var from = crossSection1.Get3DPoints();
+            var to = middleShape;
+            // if (middleShape.Length > crossSection1.Get3DPoints().Length)
+            // {
+            //     from = middleShape;
+            //     to = crossSection1.Get3DPoints();
+            // }
+
+            // var edges = new (Vector3, Vector3)[from.Length];
+            // for (var j = 0; j < from.Length; j++)
+            // {
+            //     var p = from[j];
+            //     var cP = GetClosestPoint(to, p);
+            //     // we need to connect p with closestPoint
+            //     edges[j] = (p, cP);
+            //     // Gizmos.DrawLine(p, cP);
+            // }
+            // // Debug.Log($"numedges: {edges.Length}, from: {from.Length}, to: {to.Length}");
         }
+    }
+
+    private void OnDrawGizmos()
+    {
+
+        CreateCombinedMesh();
+    }
+
+    private Vector3 GetClosestPoint(Vector3[] points, Vector3 reference)
+    {
+        if (points.Length == 0)
+        {
+            return Vector3.zero; //TODO
+        }
+
+        var closestPoint = points.MinBy(p => Vector3.Dot(p, reference));
+        return closestPoint;
     }
 
     private int CountVertices(VertexPath path)
@@ -67,7 +122,7 @@ public class Extruder : MonoBehaviour
             var (crossSection1, crossSection2, t2) = GetCrossSections(t);
 
             // Find the shape of the point using the cross sections
-            var shape = ShapeInterpolator.GetShape(crossSection1.GetPoints(), crossSection2.GetPoints(), t2);
+            var shape = ShapeInterpolator.GetShape(crossSection1.Get2DPoints(), crossSection2.Get2DPoints(), t2);
 
             // Add the number of vertices to the total count
             numVertices += shape.Length;
