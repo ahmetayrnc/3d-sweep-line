@@ -42,6 +42,8 @@ public class Extruder : MonoBehaviour
         var crossSections = GetCrossSections();
         var numVertices = CountVertices(path);
 
+        var tempCrossSections = new Vector3[numVertices][];
+
         var vertices = new Vector3[numVertices];
         for (int i = 0; i < path.NumPoints; i++)
         {
@@ -58,22 +60,22 @@ public class Extruder : MonoBehaviour
             // Find the shape of the point using the cross sections using t2
             var middleShape = ShapeInterpolator.GetShape(crossSection1.Get2DPoints(), crossSection2.Get2DPoints(), t2);
 
-            // Move the shape to the correct position on the path
-            // middleShape = middleShape.Select(v => v + point).ToArray();
-            foreach (var vertex in middleShape)
-            {
-                // var p = vertex.To3DPoint(path, t);
-                // Gizmos.DrawCube(p, Vector3.one * 0.1f);
-            }
-            // Debug.Log($"t: {t2}, c1: {crossSection1.GetPoints()[0]}, c2: {crossSection2.GetPoints()[0]}, middle: {middleShape[0]}");
+            var mesh = Create2DMesh(middleShape);
+            var vertices2D = mesh.vertices.Select(v => (Vector2)v).ToArray();
+            var points3D = vertices2D.Select(p => p.To3DPoint(path, t)).ToArray();
+            mesh.vertices = points3D;
+
+            tempCrossSections[i] = points3D;
+
+            Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
 
             // We need to connect shape to the mesh we already have. Somehow.
             // Find the shape with the most vertices. From has more vertices
             // var from = crossSection1.Get3DPoints();
-            // var to = middleShape;
+            // var to = middleShape.Select(p => (Vector3)p).ToArray();
             // if (middleShape.Length > crossSection1.Get3DPoints().Length)
             // {
-            //     from = middleShape;
+            //     from = middleShape.Select(p => (Vector3)p).ToArray();
             //     to = crossSection1.Get3DPoints();
             // }
 
@@ -82,12 +84,31 @@ public class Extruder : MonoBehaviour
             // {
             //     var p = from[j];
             //     var cP = GetClosestPoint(to, p);
+
             //     // we need to connect p with closestPoint
             //     edges[j] = (p, cP);
-            //     // Gizmos.DrawLine(p, cP);
+            //     Gizmos.DrawLine(p, cP);
             // }
             // // Debug.Log($"numedges: {edges.Length}, from: {from.Length}, to: {to.Length}");
         }
+    }
+
+    private Mesh Create2DMesh(Vector2[] vertices)
+    {
+        var vertices3D = System.Array.ConvertAll<Vector2, Vector3>(vertices, v => v);
+        var triangulator = new Triangulator(vertices);
+        var triangleIndices = triangulator.Triangulate();
+
+        var mesh = new Mesh
+        {
+            vertices = vertices3D,
+            triangles = triangleIndices,
+        };
+
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+
+        return mesh;
     }
 
     private void OnDrawGizmos()
