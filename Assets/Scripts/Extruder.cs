@@ -62,15 +62,15 @@ public class Extruder : MonoBehaviour
             // middleShape = middleShape.Select(v => v + point).ToArray();
             foreach (var vertex in middleShape)
             {
-                var p = vertex.To3DPoint(path, t);
-                Gizmos.DrawCube(p, Vector3.one * 0.1f);
+                // var p = vertex.To3DPoint(path, t);
+                // Gizmos.DrawCube(p, Vector3.one * 0.1f);
             }
             // Debug.Log($"t: {t2}, c1: {crossSection1.GetPoints()[0]}, c2: {crossSection2.GetPoints()[0]}, middle: {middleShape[0]}");
 
             // We need to connect shape to the mesh we already have. Somehow.
             // Find the shape with the most vertices. From has more vertices
-            var from = crossSection1.Get3DPoints();
-            var to = middleShape;
+            // var from = crossSection1.Get3DPoints();
+            // var to = middleShape;
             // if (middleShape.Length > crossSection1.Get3DPoints().Length)
             // {
             //     from = middleShape;

@@ -17,6 +17,9 @@ public class CrossSection : MonoBehaviour
     [Range(0, 2 * Mathf.PI)]
     public float rotation = 0;
 
+    public Vector2[] coords2D;
+    public Vector3[] coord3D;
+
     // Internal variables
     private PathCreator _pathCreator;
     private MeshFilter _meshFilter;
@@ -27,13 +30,7 @@ public class CrossSection : MonoBehaviour
     // Uses a 2D coordinate system to describe the shape
     public Vector2[] Get2DPoints()
     {
-        var pathCreator = GetPathCreator();
-        var path = pathCreator.path;
-        var direction = path.GetDirection(t, EndOfPathInstruction.Stop);
-
-        var points3d = Get3DPoints();
-        var points2d = points3d.Select(p => (Vector2)Vector3.ProjectOnPlane(p, direction)).ToArray();
-        return points2d;
+        return coords2D;
     }
 
     // Uses the 2D coordinate systems and the position on the path as the z value
@@ -47,9 +44,13 @@ public class CrossSection : MonoBehaviour
     // Uses the actual 3D coordinate system
     public Vector3[] Get3DPoints()
     {
-        var meshFilter = GetMeshFilter();
-        var points = meshFilter.sharedMesh.vertices;
-        return points;
+        var pathCreator = GetPathCreator();
+        var path = pathCreator.path;
+
+        var points2D = Get2DPoints();
+        var points3D = points2D.Select(p => p.To3DPoint(path, t)).ToArray();
+
+        return points3D;
     }
 
     public Vector3 GetCenterPoint()
@@ -78,9 +79,10 @@ public class CrossSection : MonoBehaviour
 
     private void Update()
     {
-        UpdatePosition();
         UpdateMesh();
-        UpdateDirection();
+
+        coords2D = Get2DPoints();
+        coord3D = Get3DPoints();
     }
 
     private void UpdatePosition()
@@ -102,9 +104,10 @@ public class CrossSection : MonoBehaviour
             vertices[i] = new Vector2(x, y);
         }
 
+        coords2D = vertices;
+
         // Mesh creation
-        var vertices3D = vertices.Select(v => v.To3DPoint(GetPathCreator().path, t)).ToArray();
-        // var vertices3D = System.Array.ConvertAll<Vector2, Vector3>(vertices, v => v);
+        var vertices3D = System.Array.ConvertAll<Vector2, Vector3>(vertices, v => v);
         var triangulator = new Triangulator(vertices);
         var triangleIndices = triangulator.Triangulate();
 
@@ -122,16 +125,10 @@ public class CrossSection : MonoBehaviour
         meshFilter.mesh = mesh;
     }
 
-    private void UpdateDirection()
-    {
-        var pathCreator = GetPathCreator();
-        var direction = pathCreator.path.GetDirection(t, EndOfPathInstruction.Stop);
-        // transform.rotation = Quaternion.LookRotation(direction);
-    }
-
     private void OnDrawGizmos()
     {
         var meshFilter = GetMeshFilter();
-        Gizmos.DrawWireMesh(meshFilter.sharedMesh, -1, transform.position, transform.rotation, transform.localScale);
+        meshFilter.sharedMesh.vertices = Get3DPoints();
+        Gizmos.DrawWireMesh(meshFilter.sharedMesh, -1, Vector3.zero, Quaternion.identity, transform.localScale);
     }
 }

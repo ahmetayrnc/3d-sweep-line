@@ -15,12 +15,15 @@ namespace Vector3Extension
 
         public static Vector3 To3DPoint(this Vector2 point2D, VertexPath path, float t)
         {
-            var pathDirection = path.GetDirection(t);
-            var positionOnPath = path.GetPointAtTime(t, EndOfPathInstruction.Stop);
-            var point = point2D;
+            var point = (Vector3)point2D;
 
-            point = Quaternion.LookRotation(pathDirection) * point;
-            point = (Vector3)point2D + positionOnPath;
+            var position = path.GetPointAtTime(t, EndOfPathInstruction.Stop);
+            var direction = path.GetDirection(t, EndOfPathInstruction.Stop);
+            var rotation = Quaternion.FromToRotation(Vector3.forward, direction);
+
+            point = rotation * point;
+            point = position + point;
+
             return point;
         }
 
