@@ -42,8 +42,7 @@ public class Extruder : MonoBehaviour
         var crossSections = GetCrossSections();
         var numVertices = CountVertices(path);
 
-        var tempCrossSections = new Vector3[numVertices][];
-
+        var shapes = new Vector3[numVertices][];
         var vertices = new Vector3[numVertices];
         for (int i = 0; i < path.NumPoints; i++)
         {
@@ -60,37 +59,79 @@ public class Extruder : MonoBehaviour
             // Find the shape of the point using the cross sections using t2
             var middleShape = ShapeInterpolator.GetShape(crossSection1.Get2DPoints(), crossSection2.Get2DPoints(), t2);
 
-            var mesh = Create2DMesh(middleShape);
-            var vertices2D = mesh.vertices.Select(v => (Vector2)v).ToArray();
-            var points3D = vertices2D.Select(p => p.To3DPoint(path, t)).ToArray();
-            mesh.vertices = points3D;
+            // transform the shape to 3D
+            var middleShapePoints3D = middleShape.To3DPoints(path, t);
 
-            tempCrossSections[i] = points3D;
+            // Get the triangle indices from the combination of 2 shapes
+            var triangleIndices = MatchVertices(Enumerable.Range(0, middleShape.Length).ToArray(),
+             Enumerable.Range(middleShape.Length, middleShape.Length * 2).ToArray());
 
+            // Find the previous shape to connect to
+            Vector3[] prevShape;
+            if (i == 0)
+            {
+                prevShape = crossSections[0].Get3DPoints();
+            }
+            else
+            {
+                prevShape = shapes[i - 1];
+            }
+
+            // Create the mesh
+            var mesh = new Mesh
+            {
+                vertices = prevShape.Concat(middleShapePoints3D).ToArray(),
+                triangles = triangleIndices,
+            };
+
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+
+            shapes[i] = middleShapePoints3D;
+
+            // draw the mesh for debugging
             Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
-
-            // We need to connect shape to the mesh we already have. Somehow.
-            // Find the shape with the most vertices. From has more vertices
-            // var from = crossSection1.Get3DPoints();
-            // var to = middleShape.Select(p => (Vector3)p).ToArray();
-            // if (middleShape.Length > crossSection1.Get3DPoints().Length)
-            // {
-            //     from = middleShape.Select(p => (Vector3)p).ToArray();
-            //     to = crossSection1.Get3DPoints();
-            // }
-
-            // var edges = new (Vector3, Vector3)[from.Length];
-            // for (var j = 0; j < from.Length; j++)
-            // {
-            //     var p = from[j];
-            //     var cP = GetClosestPoint(to, p);
-
-            //     // we need to connect p with closestPoint
-            //     edges[j] = (p, cP);
-            //     Gizmos.DrawLine(p, cP);
-            // }
-            // // Debug.Log($"numedges: {edges.Length}, from: {from.Length}, to: {to.Length}");
         }
+    }
+
+    // Given two aligned arrays of the shapes vertices' indices, 
+    // creates the triangle indices for one segment of the mesh
+    private int[] MatchVertices(int[] shape1, int[] shape2)
+    {
+        var shapeLength = shape1.Length;
+        var triangles = new int[shapeLength * 2 * 3]; // 2 triangles/face, 3 indices/triangle
+        for (var i = 0; i < shapeLength; i++)
+        {
+            var nextIndex = (i + 1) % shapeLength;
+            var faceTriangles = MakeTriangles(new int[] { shape1[i], shape2[i] },
+                                            new int[] { shape1[nextIndex], shape2[nextIndex] });
+
+            var faceTrianglesLenght = faceTriangles.Length;
+            // Copy the indices of the face triangles to the main triangles array
+            for (var j = 0; j < faceTrianglesLenght; j++)
+            {
+                triangles[i * faceTrianglesLenght + j] = faceTriangles[j];
+            }
+        }
+
+        return triangles;
+    }
+
+    private int[] MakeTriangles(int[] edge1, int[] edge2)
+    {
+        var triangles = new int[6];
+
+        // first triangle
+        triangles[0] = edge1[0];
+        triangles[1] = edge1[1];
+        triangles[2] = edge2[1];
+
+        // second triangle
+        triangles[3] = edge1[0];
+        triangles[4] = edge2[1];
+        triangles[5] = edge2[0];
+
+        return triangles;
     }
 
     private Mesh Create2DMesh(Vector2[] vertices)
@@ -124,7 +165,7 @@ public class Extruder : MonoBehaviour
             return Vector3.zero; //TODO
         }
 
-        var closestPoint = points.MinBy(p => Vector3.Dot(p, reference));
+        var closestPoint = points.MinBy(p => (p - reference).sqrMagnitude);
         return closestPoint;
     }
 

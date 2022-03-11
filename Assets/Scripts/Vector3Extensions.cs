@@ -2,12 +2,18 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using PathCreation;
+using System.Linq;
 
 
 namespace Vector3Extension
 {
     public static class Vector3ExtensionClass
     {
+        public static Vector3[] To3DPoints(this Vector2[] points3D, VertexPath path, float t)
+        {
+            return points3D.Select(p => p.To3DPoint(path, t)).ToArray();
+        }
+
         public static Vector2 To2DPoint(this Vector3 point3D, Vector3 pathDirection)
         {
             return (Vector2)Vector3.ProjectOnPlane(point3D, pathDirection);
@@ -26,10 +32,5 @@ namespace Vector3Extension
 
             return point;
         }
-
-        // public static Vector3 ToPathPoint(this Vector3 point, Vector3 pathDirection)
-        // {
-
-        // }
     }
 }
