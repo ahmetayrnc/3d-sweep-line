@@ -3,7 +3,7 @@ using PathCreation;
 using System.Linq;
 using MinByExtension;
 using Vector3Extension;
-
+using System;
 
 [ExecuteInEditMode]
 [RequireComponent(typeof(PathCreator))]
@@ -30,11 +30,6 @@ public class Extruder : MonoBehaviour
         return _pathCreator;
     }
 
-    private void Update()
-    {
-        // CreateCombinedMesh();
-    }
-
     private void CreateCombinedMesh()
     {
         var pathCreator = GetPathCreator();
@@ -57,67 +52,64 @@ public class Extruder : MonoBehaviour
             var (crossSection1, crossSection2, t2) = GetCrossSections(t);
 
             // Find the shape of the point using the cross sections using t2
-            var middleShape = ShapeInterpolator.GetShape(crossSection1.Get2DPoints(), crossSection2.Get2DPoints(), t2);
+            var middleShape = ShapeInterpolator.GetShape(crossSection1.Get2DPoints(), crossSection2.Get2DPoints(), t2).To3DPoints(path, t);
 
-            // transform the shape to 3D
-            var middleShapePoints3D = middleShape.To3DPoints(path, t);
+            // store the created shape
+            shapes[i] = middleShape;
+        }
+
+        var mesh = CreateMesh(shapes);
+        Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
+    }
+
+    private Mesh CreateMesh(Vector3[][] shapes)
+    {
+        // var triangles = new Vector3[shapes.Length * shapes[0].Length * 2 * 3];
+        var triangles = new int[shapes.Length][];
+        for (var i = 1; i < 0; i++)
+        {
+            var prevShape = shapes[i - 1];
+            var shape = shapes[i];
 
             // Get the triangle indices from the combination of 2 shapes
-            var triangleIndices = MatchVertices(Enumerable.Range(0, middleShape.Length).ToArray(),
-             Enumerable.Range(middleShape.Length, middleShape.Length * 2).ToArray());
-
-            // Find the previous shape to connect to
-            Vector3[] prevShape;
-            if (i == 0)
-            {
-                prevShape = crossSections[0].Get3DPoints();
-            }
-            else
-            {
-                prevShape = shapes[i - 1];
-            }
-
-            // Create the mesh
-            var mesh = new Mesh
-            {
-                vertices = prevShape.Concat(middleShapePoints3D).ToArray(),
-                triangles = triangleIndices,
-            };
-
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-
-            shapes[i] = middleShapePoints3D;
-
-            // draw the mesh for debugging
-            Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
+            var length = shape.Length;
+            triangles[i] = MakeTrianglesForShape(Enumerable.Range(i * length, (i + 1) * length).ToArray(),
+                    Enumerable.Range((i + 1) * length, (i + 2) * length).ToArray());
         }
+
+        // Create the mesh
+        var mesh = new Mesh
+        {
+            vertices = ConcatArrays(shapes),
+            triangles = ConcatArrays(triangles),
+        };
+
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+
+        return mesh;
     }
 
     // Given two aligned arrays of the shapes vertices' indices, 
     // creates the triangle indices for one segment of the mesh
-    private int[] MatchVertices(int[] shape1, int[] shape2)
+    private int[] MakeTrianglesForShape(int[] shape1, int[] shape2)
     {
         var shapeLength = shape1.Length;
-        var triangles = new int[shapeLength * 2 * 3]; // 2 triangles/face, 3 indices/triangle
+        var faces = new int[shapeLength][];
+
         for (var i = 0; i < shapeLength; i++)
         {
             var nextIndex = (i + 1) % shapeLength;
-            var faceTriangles = MakeTriangles(new int[] { shape1[i], shape2[i] },
+            var faceTriangles = MakeTrianglesForFace(new int[] { shape1[i], shape2[i] },
                                             new int[] { shape1[nextIndex], shape2[nextIndex] });
-
-            var faceTrianglesLenght = faceTriangles.Length;
-            // Copy the indices of the face triangles to the main triangles array
-            for (var j = 0; j < faceTrianglesLenght; j++)
-            {
-                triangles[i * faceTrianglesLenght + j] = faceTriangles[j];
-            }
         }
 
+        var triangles = ConcatArrays(faces);
         return triangles;
     }
 
-    private int[] MakeTriangles(int[] edge1, int[] edge2)
+    // TODO: instead of int[] use a struct EDGE
+    private int[] MakeTrianglesForFace(int[] edge1, int[] edge2)
     {
         var triangles = new int[6];
 
@@ -134,27 +126,20 @@ public class Extruder : MonoBehaviour
         return triangles;
     }
 
-    private Mesh Create2DMesh(Vector2[] vertices)
+    public static T[] ConcatArrays<T>(params T[][] p)
     {
-        var vertices3D = System.Array.ConvertAll<Vector2, Vector3>(vertices, v => v);
-        var triangulator = new Triangulator(vertices);
-        var triangleIndices = triangulator.Triangulate();
-
-        var mesh = new Mesh
+        var position = 0;
+        var outputArray = new T[p.Sum(a => a.Length)];
+        foreach (var curr in p)
         {
-            vertices = vertices3D,
-            triangles = triangleIndices,
-        };
-
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
-
-        return mesh;
+            Array.Copy(curr, 0, outputArray, position, curr.Length);
+            position += curr.Length;
+        }
+        return outputArray;
     }
 
     private void OnDrawGizmos()
     {
-
         CreateCombinedMesh();
     }
 

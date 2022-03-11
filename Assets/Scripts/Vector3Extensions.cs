@@ -14,11 +14,6 @@ namespace Vector3Extension
             return points3D.Select(p => p.To3DPoint(path, t)).ToArray();
         }
 
-        public static Vector2 To2DPoint(this Vector3 point3D, Vector3 pathDirection)
-        {
-            return (Vector2)Vector3.ProjectOnPlane(point3D, pathDirection);
-        }
-
         public static Vector3 To3DPoint(this Vector2 point2D, VertexPath path, float t)
         {
             var point = (Vector3)point2D;
