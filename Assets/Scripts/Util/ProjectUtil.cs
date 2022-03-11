@@ -18,15 +18,32 @@ public static class ProjectUtil
         return outputArray;
     }
 
-    private static Vector3 GetClosestPoint(Vector3[] points, Vector3 reference)
+    public static int GetClosestPointIndex(Vector2[] points, Vector2 reference)
     {
         if (points.Length == 0)
         {
-            return Vector3.zero; //TODO
+            return -1; //TODO
         }
 
-        var closestPoint = points.MinBy(p => (p - reference).sqrMagnitude);
-        return closestPoint;
+        int minIndex = 0;
+        var distances = points.Select(p => (p - reference).sqrMagnitude).ToArray();
+        for (int i = 0; i < distances.Length; i++)
+        {
+            if (distances[i] < distances[minIndex])
+            {
+                minIndex = i;
+            }
+        }
+
+        return minIndex;
+    }
+
+    public static float InverseLerp(Vector2 a, Vector2 b, Vector2 value)
+    {
+        var AB = b - a;
+        var AV = value - a;
+        var result = (AV - AB).sqrMagnitude / (AB - AB).sqrMagnitude;
+        return result;
     }
 }
 

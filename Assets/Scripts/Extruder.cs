@@ -54,7 +54,8 @@ public class Extruder : MonoBehaviour
     {
         var pathCreator = GetPathCreator();
         var path = pathCreator.path;
-        var crossSections = GetCrossSections();
+        var oldCrossSections = GetCrossSections();
+        var crossSections = ShapeInterpolator.FixShapes(oldCrossSections.Select(cs => cs.Get2DPoints()).ToArray());
 
         var shapes = new Vector3[path.NumPoints][];
         for (int i = 0; i < path.NumPoints; i++)
@@ -66,16 +67,16 @@ public class Extruder : MonoBehaviour
             var t = path.GetClosestTimeOnPath(point);
 
             // Find the cross sections that the point lies between using t
-            var (crossSection1, crossSection2, t2) = GetCrossSections(t);
+            var (_, _, t2) = GetCrossSections(t);
 
             // Find the shape of the point using the cross sections using t2
-            var middleShape = ShapeInterpolator.GetShape(crossSection1.Get2DPoints(), crossSection2.Get2DPoints(), t2).To3DPoints(path, t);
+            var middleShape = ShapeInterpolator.MorphShape(crossSections[0], crossSections[1], t2).To3DPoints(path, t);
 
             // store the created shape
             shapes[i] = middleShape;
         }
 
-        var mesh = CreateMesh(shapes, crossSections[0].Get2DPoints(), crossSections[crossSections.Length - 1].Get2DPoints());
+        var mesh = CreateMesh(shapes, crossSections[0], crossSections[crossSections.Length - 1]);
         return mesh;
     }
 
