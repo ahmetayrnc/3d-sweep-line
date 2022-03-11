@@ -1,17 +1,18 @@
 using UnityEngine;
 using PathCreation;
 using System.Linq;
-using MinByExtension;
 using Vector3Extension;
-using System;
+using static ProjectUtil;
 
 [ExecuteInEditMode]
 [RequireComponent(typeof(PathCreator))]
+[RequireComponent(typeof(MeshFilter))]
 public class Extruder : MonoBehaviour
 {
     public int[] Triangles;
     private PathCreator _pathCreator;
     private CrossSection[] _crossSections;
+    private MeshFilter _meshFilter;
 
     private CrossSection[] GetCrossSections()
     {
@@ -31,12 +32,25 @@ public class Extruder : MonoBehaviour
         return _pathCreator;
     }
 
-    private void OnDrawGizmos()
+    private MeshFilter GetMeshFilter()
     {
-        CreateCombinedMesh();
+        if (_meshFilter == null)
+        {
+            _meshFilter = GetComponent<MeshFilter>();
+        }
+        return _meshFilter;
     }
 
-    private void CreateCombinedMesh()
+    private void OnDrawGizmos()
+    {
+        var mesh = CreatePathMesh();
+        var meshFilter = GetMeshFilter();
+        meshFilter.mesh = mesh;
+
+        Triangles = mesh.triangles;
+    }
+
+    private Mesh CreatePathMesh()
     {
         var pathCreator = GetPathCreator();
         var path = pathCreator.path;
@@ -47,7 +61,6 @@ public class Extruder : MonoBehaviour
         {
             // Get the point on the vertex path
             var point = path.GetPoint(i);
-            Gizmos.DrawSphere(point, 0.05f);
 
             // Find the time t of the point on the path
             var t = path.GetClosestTimeOnPath(point);
@@ -62,40 +75,54 @@ public class Extruder : MonoBehaviour
             shapes[i] = middleShape;
         }
 
-        var mesh = CreateMesh(shapes);
-        Gizmos.DrawMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
+        var mesh = CreateMesh(shapes, crossSections[0].Get2DPoints(), crossSections[crossSections.Length - 1].Get2DPoints());
+        return mesh;
     }
 
-    private Mesh CreateMesh(Vector3[][] shapes)
+    private static Mesh CreateMesh(Vector3[][] shapes, Vector2[] start, Vector2[] end)
     {
-        var triangles = new int[shapes.Length - 1][];
+        // Create the triangles for the middle sections
+        var shapeTriangles = new int[shapes.Length - 1][];
         for (var i = 0; i < shapes.Length - 1; i++)
         {
             var shape = shapes[i];
             var shapeLength = shape.Length;
 
-            triangles[i] = MakeTrianglesForShape(Enumerable.Range(i * shapeLength, shapeLength).ToArray(),
+            shapeTriangles[i] = MakeTrianglesForShape(Enumerable.Range(i * shapeLength, shapeLength).ToArray(),
                     Enumerable.Range((i + 1) * shapeLength, shapeLength).ToArray());
         }
+
+        var vertices = ConcatArrays(shapes);
+        var triangles = ConcatArrays(shapeTriangles);
+
+        // create the triangles for the end sections
+        var triangulator = new Triangulator(start);
+        var startShapeTriangles = triangulator.Triangulate();
+        triangulator = new Triangulator(end);
+        var endShapeTriangles = triangulator.Triangulate();
+
+        // the result of the triangluation has the indices starting from 0, convert them to the correct ones.
+        endShapeTriangles = endShapeTriangles.Select(i => vertices.Length - i - 1).ToArray();
+
+        // Add the start and end triangles
+        triangles = ConcatArrays(triangles, startShapeTriangles, endShapeTriangles);
 
         // Create the mesh
         var mesh = new Mesh
         {
-            vertices = ConcatArrays(shapes),
-            triangles = ConcatArrays(triangles),
+            vertices = vertices,
+            triangles = triangles,
         };
 
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
-
-        Triangles = ConcatArrays(triangles);
 
         return mesh;
     }
 
     // Given two aligned arrays of the shapes vertices' indices, 
     // creates the triangle indices for one segment of the mesh
-    private int[] MakeTrianglesForShape(int[] shape1, int[] shape2)
+    private static int[] MakeTrianglesForShape(int[] shape1, int[] shape2)
     {
         var shapeLength = shape1.Length;
         var faces = new int[shapeLength][];
@@ -113,7 +140,7 @@ public class Extruder : MonoBehaviour
     }
 
     // TODO: instead of int[] use a struct EDGE
-    private int[] MakeTrianglesForFace(int[] edge1, int[] edge2)
+    private static int[] MakeTrianglesForFace(int[] edge1, int[] edge2)
     {
         var triangles = new int[6];
 
@@ -130,29 +157,7 @@ public class Extruder : MonoBehaviour
         return triangles;
     }
 
-    public static T[] ConcatArrays<T>(params T[][] p)
-    {
-        var position = 0;
-        var outputArray = new T[p.Sum(a => a.Length)];
-        foreach (var curr in p)
-        {
-            Array.Copy(curr, 0, outputArray, position, curr.Length);
-            position += curr.Length;
-        }
-        return outputArray;
-    }
-
-    private Vector3 GetClosestPoint(Vector3[] points, Vector3 reference)
-    {
-        if (points.Length == 0)
-        {
-            return Vector3.zero; //TODO
-        }
-
-        var closestPoint = points.MinBy(p => (p - reference).sqrMagnitude);
-        return closestPoint;
-    }
-
+    // Find the cross sections that are to the left and to the right of the point t
     private (CrossSection a, CrossSection b, float t2) GetCrossSections(float t)
     {
         var crossSections = GetCrossSections();
