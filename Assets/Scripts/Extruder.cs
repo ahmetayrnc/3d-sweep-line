@@ -30,15 +30,18 @@ public class Extruder : MonoBehaviour
         return _pathCreator;
     }
 
+    private void OnDrawGizmos()
+    {
+        CreateCombinedMesh();
+    }
+
     private void CreateCombinedMesh()
     {
         var pathCreator = GetPathCreator();
         var path = pathCreator.path;
         var crossSections = GetCrossSections();
-        var numVertices = CountVertices(path);
 
-        var shapes = new Vector3[numVertices][];
-        var vertices = new Vector3[numVertices];
+        var shapes = new Vector3[path.NumPoints][];
         for (int i = 0; i < path.NumPoints; i++)
         {
             // Get the point on the vertex path
@@ -64,17 +67,15 @@ public class Extruder : MonoBehaviour
 
     private Mesh CreateMesh(Vector3[][] shapes)
     {
-        // var triangles = new Vector3[shapes.Length * shapes[0].Length * 2 * 3];
         var triangles = new int[shapes.Length][];
-        for (var i = 1; i < 0; i++)
+        for (var i = 0; i < shapes.Length; i++)
         {
-            var prevShape = shapes[i - 1];
             var shape = shapes[i];
+            var shapeLength = shape.Length;
 
-            // Get the triangle indices from the combination of 2 shapes
-            var length = shape.Length;
-            triangles[i] = MakeTrianglesForShape(Enumerable.Range(i * length, (i + 1) * length).ToArray(),
-                    Enumerable.Range((i + 1) * length, (i + 2) * length).ToArray());
+            Debug.Log($"shapeLen: {shapeLength}");
+            triangles[i] = MakeTrianglesForShape(Enumerable.Range(i * shapeLength, shapeLength).ToArray(),
+                    Enumerable.Range(((i + 1) % shapeLength) * shapeLength, shapeLength).ToArray());
         }
 
         // Create the mesh
@@ -102,6 +103,7 @@ public class Extruder : MonoBehaviour
             var nextIndex = (i + 1) % shapeLength;
             var faceTriangles = MakeTrianglesForFace(new int[] { shape1[i], shape2[i] },
                                             new int[] { shape1[nextIndex], shape2[nextIndex] });
+            faces[i] = faceTriangles;
         }
 
         var triangles = ConcatArrays(faces);
@@ -138,11 +140,6 @@ public class Extruder : MonoBehaviour
         return outputArray;
     }
 
-    private void OnDrawGizmos()
-    {
-        CreateCombinedMesh();
-    }
-
     private Vector3 GetClosestPoint(Vector3[] points, Vector3 reference)
     {
         if (points.Length == 0)
@@ -152,30 +149,6 @@ public class Extruder : MonoBehaviour
 
         var closestPoint = points.MinBy(p => (p - reference).sqrMagnitude);
         return closestPoint;
-    }
-
-    private int CountVertices(VertexPath path)
-    {
-        var numVertices = 0;
-        for (int i = 0; i < path.NumPoints; i++)
-        {
-            // Get the point on the vertex path
-            var point = path.GetPoint(i);
-
-            // Find the time t of the point
-            var t = path.GetClosestTimeOnPath(point);
-
-            // Find the cross sections that the point lies between
-            var (crossSection1, crossSection2, t2) = GetCrossSections(t);
-
-            // Find the shape of the point using the cross sections
-            var shape = ShapeInterpolator.GetShape(crossSection1.Get2DPoints(), crossSection2.Get2DPoints(), t2);
-
-            // Add the number of vertices to the total count
-            numVertices += shape.Length;
-        }
-
-        return numVertices;
     }
 
     private (CrossSection a, CrossSection b, float t2) GetCrossSections(float t)
