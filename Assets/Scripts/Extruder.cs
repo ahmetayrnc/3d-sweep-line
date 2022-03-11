@@ -9,6 +9,7 @@ using System;
 [RequireComponent(typeof(PathCreator))]
 public class Extruder : MonoBehaviour
 {
+    public int[] Triangles;
     private PathCreator _pathCreator;
     private CrossSection[] _crossSections;
 
@@ -62,20 +63,19 @@ public class Extruder : MonoBehaviour
         }
 
         var mesh = CreateMesh(shapes);
-        Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
+        Gizmos.DrawMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
     }
 
     private Mesh CreateMesh(Vector3[][] shapes)
     {
-        var triangles = new int[shapes.Length][];
-        for (var i = 0; i < shapes.Length; i++)
+        var triangles = new int[shapes.Length - 1][];
+        for (var i = 0; i < shapes.Length - 1; i++)
         {
             var shape = shapes[i];
             var shapeLength = shape.Length;
 
-            Debug.Log($"shapeLen: {shapeLength}");
             triangles[i] = MakeTrianglesForShape(Enumerable.Range(i * shapeLength, shapeLength).ToArray(),
-                    Enumerable.Range(((i + 1) % shapeLength) * shapeLength, shapeLength).ToArray());
+                    Enumerable.Range((i + 1) * shapeLength, shapeLength).ToArray());
         }
 
         // Create the mesh
@@ -87,6 +87,8 @@ public class Extruder : MonoBehaviour
 
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
+
+        Triangles = ConcatArrays(triangles);
 
         return mesh;
     }
