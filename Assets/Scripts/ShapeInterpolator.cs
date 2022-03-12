@@ -12,7 +12,10 @@ public class ShapeInterpolator : MonoBehaviour
     // This makes interpolation super easy
     public static ShapeData[] ExpandShapes(ShapeData[] shapes)
     {
-        var stack = new Stack<int>();
+        var toBeProcessed = new Stack<int>();
+        var processed = new bool[shapes.Length];
+
+        // find the shape with the max numPoints
         var maxIndex = 0;
         for (int i = 0; i < shapes.Length; i++)
         {
@@ -22,35 +25,50 @@ public class ShapeInterpolator : MonoBehaviour
                 maxIndex = i;
             }
         }
-        stack.Push(maxIndex);
 
-        while (stack.Count > 0)
+        // We will start expandsing shapes starting with the neighbors of the max numPoints shape
+        // add the shapes that changed to the stack and change their neighbors aswell
+        toBeProcessed.Push(maxIndex);
+
+        var count = 0;
+        while (toBeProcessed.Count > 0 && count < 10)
         {
-            var index = stack.Pop();
-            if (index + 1 < shapes.Length)
+            var index = toBeProcessed.Pop();
+            processed[index] = true;
+
+            var nextIndex = index + 1;
+            var prevIndex = index - 1;
+            AlignAndExpandShape(shapes, index, nextIndex);
+            AlignAndExpandShape(shapes, index, prevIndex);
+
+            if (nextIndex < shapes.Length && !processed[nextIndex])
             {
-                if (shapes[index].GetNumPoints() != shapes[index + 1].GetNumPoints())
-                {
-                    var nextShape = AlignShape(shapes[index].Get2DPoints(), shapes[index + 1].Get2DPoints());
-                    nextShape = ExpandShape(shapes[index].Get2DPoints(), nextShape);
-                    shapes[index + 1].UpdateShape(nextShape);
-                    stack.Push(index + 1);
-                }
+                toBeProcessed.Push(nextIndex);
             }
 
-            if (index - 1 >= 0)
+            if (prevIndex >= 0 && !processed[prevIndex])
             {
-                if (shapes[index].GetNumPoints() != shapes[index - 1].GetNumPoints())
-                {
-                    var nextShape = AlignShape(shapes[index].Get2DPoints(), shapes[index - 1].Get2DPoints());
-                    nextShape = ExpandShape(shapes[index].Get2DPoints(), nextShape);
-                    shapes[index - 1].UpdateShape(nextShape);
-                    stack.Push(index - 1);
-                }
+                toBeProcessed.Push(prevIndex);
             }
+
+            count++;
         }
 
         return shapes;
+    }
+
+    // We needed to do this for both the prev index and the next index, didnt' want to write it twice so made it a method
+    private static void AlignAndExpandShape(ShapeData[] shapes, int index1, int index2)
+    {
+        // out of bounds
+        if (index2 >= shapes.Length || index2 < 0)
+        {
+            return;
+        }
+
+        var newShape = AlignShape(shapes[index1].Get2DPoints(), shapes[index2].Get2DPoints());
+        newShape = ExpandShape(shapes[index1].Get2DPoints(), newShape);
+        shapes[index2].UpdateShape(newShape);
     }
 
     // Reference Shape has more vertices
