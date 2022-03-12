@@ -2,6 +2,7 @@ using UnityEngine;
 using PathCreation;
 using System.Linq;
 using Vector3Extension;
+using UnityEditor;
 
 [ExecuteInEditMode]
 [RequireComponent(typeof(MeshFilter))]
@@ -129,6 +130,11 @@ public class CrossSection : MonoBehaviour
     {
         var meshFilter = GetMeshFilter();
         meshFilter.sharedMesh.vertices = Get3DPoints();
+        for (var i = 0; i < meshFilter.sharedMesh.vertices.Length; i++)
+        {
+            var v = meshFilter.sharedMesh.vertices[i];
+            Handles.Label(v, $"{i}");
+        }
         // Gizmos.DrawWireMesh(meshFilter.sharedMesh, -1, Vector3.zero, Quaternion.identity, transform.localScale);
     }
 }

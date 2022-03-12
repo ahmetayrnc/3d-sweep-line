@@ -12,7 +12,9 @@ public class ShapeInterpolator : MonoBehaviour
         // find the shape with max numVertices
         // convert its neighbors using pairshapes
         // repeat
-        var newShape = ExpandShape(shapes[0], shapes[1]);
+        Vector2[] newShape;
+        newShape = AlignShape(shapes[0], shapes[1]);
+        newShape = ExpandShape(shapes[0], newShape);
         shapes[1] = newShape;
 
         return shapes;
@@ -54,17 +56,16 @@ public class ShapeInterpolator : MonoBehaviour
     }
 
     // Both shapes are the same sizes right now, we will jsut align them
-    private static Vector2[] AlignShapes(Vector2[] shape1, Vector2[] shape2)
+    private static Vector2[] AlignShape(Vector2[] referenceShape, Vector2[] originalShape)
     {
         // find the closest point to the first vertex of shape 1 in shape2, that gives the offset
-        var offset = GetClosestPointIndex(shape2, shape1[0]);
-        var alignedShape = new Vector2[shape1.Length];
+        var offset = GetClosestPointIndex(originalShape, referenceShape[0]);
+        var alignedShape = new Vector2[originalShape.Length];
 
         // shift the vertices using the offset
-        for (var i = 0; i < shape2.Length; i++)
+        for (var i = 0; i < alignedShape.Length; i++)
         {
-            var newIndex = (i + offset) % shape1.Length;
-            alignedShape[newIndex] = shape2[i];
+            alignedShape[i] = originalShape[(i + offset) % originalShape.Length];
         }
 
         return alignedShape;

@@ -49,7 +49,7 @@ public class Extruder : MonoBehaviour
 
         Triangles = mesh.triangles;
 
-        // Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
+        Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
     }
 
     private Mesh CreatePathMesh()
