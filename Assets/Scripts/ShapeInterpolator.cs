@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 using static ProjectUtil;
-
+using System;
 
 public class ShapeInterpolator : MonoBehaviour
 {
@@ -74,37 +74,65 @@ public class ShapeInterpolator : MonoBehaviour
     // The location of the newly added vertices respects the relative distances on the referenceShape 
     private static Vector2[] ExpandShape(Vector2[] referenceShape, Vector2[] originalShape)
     {
+        // Find the anchor points to use
         var expandedShape = new Vector2[referenceShape.Length];
-        var skip = Mathf.CeilToInt((float)(referenceShape.Length) / originalShape.Length);
-        if ((originalShape.Length - 1) * skip >= referenceShape.Length)
+        var leftovers = referenceShape.Length - originalShape.Length; //92 = 100 - 8
+        var numBigGroups = leftovers % originalShape.Length; // 4 = 92 % 8
+        var numSmallGroups = originalShape.Length - numBigGroups; // 4 = 8 - 4
+        var smallGroupSize = leftovers / originalShape.Length + 1; // 12 = 92 / 8 + 1
+        var bigGroupSize = smallGroupSize + 1; // 13 = 12 + 1
+
+        // Groups based algorithm
+        var anchors = new int[originalShape.Length][];
+        anchors[0] = new int[] { 0, 0 };
+        for (int i = 1; i < originalShape.Length; i++)
         {
-            skip--;
+            var prevAnchor = anchors[i - 1][1];
+
+            if (numSmallGroups > 0)
+            {
+                anchors[i] = new int[] { i, prevAnchor + smallGroupSize };
+                numSmallGroups--;
+                continue;
+            }
+
+            if (numBigGroups > 0)
+            {
+                anchors[i] = new int[] { i, prevAnchor + bigGroupSize };
+                numBigGroups--;
+                continue;
+            }
         }
 
         // Now we will fill in the expandedShape
         for (var i = 0; i < expandedShape.Length; i++)
         {
-            // This means that this is an index of an anchor point so we can keep it as is
-            if (i % skip == 0 && i / skip < originalShape.Length)
+            // Find the previous anchor for the points
+            var prevAnchor = new int[] { -1, -1 };
+            var nextAnchor = new int[] { -1, -1 };
+            for (int j = 0; j < anchors.Length; j++)
             {
-                expandedShape[i] = originalShape[i / skip];
+                if (i < anchors[j][1])
+                {
+                    prevAnchor = anchors[j - 1];
+                    nextAnchor = anchors[j];
+                    break;
+                }
             }
-            // need to create a vertex
+            if (prevAnchor[0] == -1)
+            {
+                prevAnchor = anchors[anchors.Length - 1];
+                nextAnchor = anchors[0];
+            }
+
+            if (prevAnchor[1] == i)
+            {
+                expandedShape[i] = originalShape[prevAnchor[0]];
+            }
             else
             {
-                // Find the anchor points for interpolation
-                var anchor1Index = Mathf.Min(i / skip, originalShape.Length - 1); // the anchor point before this vertex
-                var anchor2Index = (Mathf.Min(i / skip + 1, originalShape.Length) % originalShape.Length); // the anchor point after this vertex
-
-                // if (referenceShape.Length == 9)
-                // {
-                //     Debug.Log($"rs: {referenceShape.Length}, os:{originalShape.Length}, skip: {skip}, i: {i}, i1: {anchor1Index}, i2: {anchor2Index}");
-                // }
-
-                // Interpolate between the anchors to create new vertices
-                var t = InverseLerpOnPolygon(referenceShape, anchor1Index * skip, Mathf.Min(anchor2Index * skip, referenceShape.Length - 1), i);
-                var newVertex = Vector2.Lerp(originalShape[anchor1Index], originalShape[anchor2Index], t);
-
+                var t = InverseLerpOnPolygon(referenceShape, prevAnchor[1], nextAnchor[1], i);
+                var newVertex = Vector2.Lerp(originalShape[prevAnchor[0]], originalShape[nextAnchor[0]], t);
                 expandedShape[i] = newVertex;
             }
         }
