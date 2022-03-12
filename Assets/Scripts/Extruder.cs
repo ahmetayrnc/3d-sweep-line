@@ -11,19 +11,21 @@ public class Extruder : MonoBehaviour
 {
     private PathCreator _pathCreator;
     private MeshFilter _meshFilter;
-
     public CrossSection[] crossSections;
+
 
     private void Awake()
     {
         _pathCreator = GetComponentInParent<PathCreator>();
         _meshFilter = GetComponent<MeshFilter>();
+        crossSections = GetComponentsInChildren<CrossSection>();
     }
 
     private void Update()
     {
-        crossSections = Enumerable.Range(0, transform.childCount).Select(i => transform.GetChild(i).GetComponent<CrossSection>()).ToArray();
-
+        Debug.Assert(_meshFilter != null, "meshFilter null");
+        Debug.Assert(_pathCreator != null, "pathCreaor null");
+        Debug.Assert(crossSections != null, "crossSections null");
         var mesh = CreatePathMesh();
         _meshFilter.mesh = mesh;
     }

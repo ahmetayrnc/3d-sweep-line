@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using static ProjectUtil;
 
-public class ShapeInterpolator : MonoBehaviour
+public static class ShapeInterpolator
 {
     // This function will get all the cross sections and will expand all cross sections
     // such that all the cross sections will be aligned and have the same number of vertices

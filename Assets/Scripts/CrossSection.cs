@@ -17,7 +17,7 @@ public class CrossSection : MonoBehaviour
     [Range(-180, 180)]
     public float rotation = 0;
 
-    public Vector2 scale;
+    public Vector2 scale = Vector2.one;
 
     // public Vector2[] coords2D;
     // public Vector3[] coord3D;
@@ -31,6 +31,7 @@ public class CrossSection : MonoBehaviour
     // --- Public Methods ---
     public ShapeData GetCrossSectionData()
     {
+        _crossSectionData = new ShapeData(CreatePoints(), _pathCreator.path, t);
         return _crossSectionData;
     }
 
