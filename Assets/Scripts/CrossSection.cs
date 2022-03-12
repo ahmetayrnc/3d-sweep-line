@@ -22,80 +22,42 @@ public class CrossSection : MonoBehaviour
     public Vector3[] coord3D;
 
     // Internal variables
+    private CrossSectionData _crossSectionData;
     private PathCreator _pathCreator;
     private MeshFilter _meshFilter;
     private MeshRenderer _meshRenderer;
 
     // --- Public Methods ---
-
-    // Uses a 2D coordinate system to describe the shape
-    public Vector2[] Get2DPoints()
+    public CrossSectionData GetCrossSectionData()
     {
-        return coords2D;
+        return _crossSectionData;
     }
 
-    // Uses the 2D coordinate systems and the position on the path as the z value
-    public Vector3[] GetPathPoints()
-    {
-        var points2d = Get2DPoints();
-        var pathPoints = points2d.Select(p => new Vector3(p.x, p.y, t)).ToArray();
-        return pathPoints;
-    }
-
-    // Uses the actual 3D coordinate system
-    public Vector3[] Get3DPoints()
-    {
-        var pathCreator = GetPathCreator();
-        var path = pathCreator.path;
-
-        var points2D = Get2DPoints();
-        var points3D = points2D.Select(p => p.To3DPoint(path, t)).ToArray();
-
-        return points3D;
-    }
-
-    public Vector3 GetCenterPoint()
-    {
-        return transform.position;
-    }
-
-    // Private Methods
-    private PathCreator GetPathCreator()
+    private void Awake()
     {
         if (_pathCreator == null)
         {
             _pathCreator = GetComponentInParent<PathCreator>();
         }
-        return _pathCreator;
-    }
 
-    private MeshFilter GetMeshFilter()
-    {
         if (_meshFilter == null)
         {
             _meshFilter = GetComponent<MeshFilter>();
         }
-        return _meshFilter;
+
+        _crossSectionData = new CrossSectionData(CreatePoints(), _pathCreator.path, t);
     }
 
     private void Update()
     {
-        UpdateMesh();
+        _crossSectionData = new CrossSectionData(CreatePoints(), _pathCreator.path, t);
 
-        coords2D = Get2DPoints();
-        coord3D = Get3DPoints();
+        coords2D = _crossSectionData.Get2DPoints();
+        coord3D = _crossSectionData.Get3DPoints();
     }
 
-    private void UpdatePosition()
+    private Vector2[] CreatePoints()
     {
-        var pathCreator = GetPathCreator();
-        var point = pathCreator.path.GetPointAtTime(t, EndOfPathInstruction.Stop);
-        transform.position = point;
-    }
-
-    private void UpdateMesh()
-    {
-        // Polygon vertices
         var angle = 2 * Mathf.PI / numPoints;
         var vertices = new Vector2[numPoints];
         for (int i = 0; i < numPoints; i++)
@@ -104,11 +66,17 @@ public class CrossSection : MonoBehaviour
             var y = Mathf.Cos(rotation + i * angle);
             vertices[i] = new Vector2(x, y);
         }
+        return vertices;
+    }
 
+    // DEBUGGING PURPOSES
+    private Mesh CreateMesh()
+    {
+        var vertices = CreatePoints();
         coords2D = vertices;
 
         // Mesh creation
-        var vertices3D = System.Array.ConvertAll<Vector2, Vector3>(vertices, v => v);
+        var vertices3D = vertices.Select(v => v.To3DPoint(_pathCreator.path, t)).ToArray();
         var triangulator = new Triangulator(vertices);
         var triangleIndices = triangulator.Triangulate();
 
@@ -121,20 +89,45 @@ public class CrossSection : MonoBehaviour
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
 
-        var meshFilter = GetMeshFilter();
-
-        meshFilter.mesh = mesh;
+        return mesh;
     }
 
     private void OnDrawGizmos()
     {
-        var meshFilter = GetMeshFilter();
-        meshFilter.sharedMesh.vertices = Get3DPoints();
-        for (var i = 0; i < meshFilter.sharedMesh.vertices.Length; i++)
+        var mesh = CreateMesh();
+
+        for (var i = 0; i < mesh.vertices.Length; i++)
         {
-            var v = meshFilter.sharedMesh.vertices[i];
+            var v = mesh.vertices[i];
             Handles.Label(v, $"{i}");
         }
-        // Gizmos.DrawWireMesh(meshFilter.sharedMesh, -1, Vector3.zero, Quaternion.identity, transform.localScale);
+
+        Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, transform.localScale);
+    }
+}
+
+public class CrossSectionData
+{
+    public VertexPath path;
+    public float t;
+    public Vector2[] points;
+
+    public CrossSectionData(Vector2[] points, VertexPath path, float t)
+    {
+        this.points = points;
+        this.t = t;
+        this.path = path;
+    }
+
+    public Vector2[] Get2DPoints()
+    {
+        return points;
+    }
+
+    // Uses the actual 3D coordinate system
+    public Vector3[] Get3DPoints()
+    {
+        var points3D = points.Select(p => p.To3DPoint(path, t)).ToArray();
+        return points3D;
     }
 }

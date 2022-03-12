@@ -11,15 +11,16 @@ public class Extruder : MonoBehaviour
 {
     public int[] Triangles;
     private PathCreator _pathCreator;
-    private CrossSection[] _crossSections;
+    private CrossSectionData[] _crossSections;
     private MeshFilter _meshFilter;
 
-    private CrossSection[] GetCrossSections()
+    private CrossSectionData[] GetCrossSections()
     {
         if (_crossSections == null)
         {
-            _crossSections = GetComponentsInChildren<CrossSection>();
+            _crossSections = GetComponentsInChildren<CrossSection>().Select(cs => cs.GetCrossSectionData()).ToArray();
         }
+
         return _crossSections;
     }
 
@@ -49,7 +50,7 @@ public class Extruder : MonoBehaviour
 
         Triangles = mesh.triangles;
 
-        Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
+        // Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
     }
 
     private Mesh CreatePathMesh()
@@ -69,7 +70,7 @@ public class Extruder : MonoBehaviour
             var t = path.GetClosestTimeOnPath(point);
 
             // Find the cross sections that the point lies between using t
-            var (_, _, t2) = GetCrossSections(t);
+            var (_, _, t2) = GetCrossSections(oldCrossSections, t);
 
             // Find the shape of the point using the cross sections using t2
             var middleShape = ShapeInterpolator.MorphShape(crossSections[0], crossSections[1], t2).To3DPoints(path, t);
@@ -161,10 +162,8 @@ public class Extruder : MonoBehaviour
     }
 
     // Find the cross sections that are to the left and to the right of the point t
-    private (CrossSection a, CrossSection b, float t2) GetCrossSections(float t)
+    private (CrossSectionData a, CrossSectionData b, float t2) GetCrossSections(CrossSectionData[] crossSections, float t)
     {
-        var crossSections = GetCrossSections();
-
         // No cross sections defined, we can't extrude a path.
         if (crossSections.Length == 0)
         {
