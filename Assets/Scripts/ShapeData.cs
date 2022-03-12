@@ -3,7 +3,7 @@ using PathCreation;
 using System.Linq;
 using Vector3Extension;
 
-public class ShapeData
+public struct ShapeData
 {
     private VertexPath path;
     private float t;
@@ -24,6 +24,8 @@ public class ShapeData
     // Uses the actual 3D coordinate system
     public Vector3[] Get3DPoints()
     {
+        var path = this.path;
+        var t = this.t;
         var points3D = points.Select(p => p.To3DPoint(path, t)).ToArray();
         return points3D;
     }
