@@ -1,8 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
-using System.Linq;
 using static ProjectUtil;
-using System;
 
 public class ShapeInterpolator : MonoBehaviour
 {
@@ -82,7 +80,7 @@ public class ShapeInterpolator : MonoBehaviour
         var smallGroupSize = leftovers / originalShape.Length + 1; // 12 = 92 / 8 + 1
         var bigGroupSize = smallGroupSize + 1; // 13 = 12 + 1
 
-        // Groups based algorithm
+        // Create the anchors using the calculated groups
         var anchors = new int[originalShape.Length][];
         anchors[0] = new int[] { 0, 0 };
         for (int i = 1; i < originalShape.Length; i++)
@@ -119,16 +117,19 @@ public class ShapeInterpolator : MonoBehaviour
                     break;
                 }
             }
+            // if we could find the group its the last group from n -> 0
             if (prevAnchor[0] == -1)
             {
                 prevAnchor = anchors[anchors.Length - 1];
                 nextAnchor = anchors[0];
             }
 
+            // if it is an anchor point just use the original point
             if (prevAnchor[1] == i)
             {
                 expandedShape[i] = originalShape[prevAnchor[0]];
             }
+            // for other points, create new vertices w.r.t distances on the referenceShape
             else
             {
                 var t = InverseLerpOnPolygon(referenceShape, prevAnchor[1], nextAnchor[1], i);
@@ -138,13 +139,6 @@ public class ShapeInterpolator : MonoBehaviour
         }
 
         return expandedShape;
-    }
-
-    // we know that 
-    private static int[] DivideIntoKPieces(int[] a, int k)
-    {
-
-        return new int[0];
     }
 
     // Both shapes are the same sizes right now, we will jsut align them
