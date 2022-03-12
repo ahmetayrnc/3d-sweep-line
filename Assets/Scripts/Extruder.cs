@@ -2,44 +2,54 @@ using UnityEngine;
 using PathCreation;
 using System.Linq;
 using static ProjectUtil;
+using UnityEditor;
 
 [ExecuteInEditMode]
 [RequireComponent(typeof(PathCreator))]
 [RequireComponent(typeof(MeshFilter))]
 public class Extruder : MonoBehaviour
 {
-    public int[] Triangles;
     private PathCreator _pathCreator;
-    private ShapeData[] _crossSections;
     private MeshFilter _meshFilter;
+
+    public CrossSection[] crossSections;
 
     private void Awake()
     {
-        if (_pathCreator == null)
-        {
-            _pathCreator = GetComponentInParent<PathCreator>();
-        }
+        _pathCreator = GetComponentInParent<PathCreator>();
+        _meshFilter = GetComponent<MeshFilter>();
+    }
 
-        if (_meshFilter == null)
-        {
-            _meshFilter = GetComponent<MeshFilter>();
-        }
+    private void Update()
+    {
+        crossSections = Enumerable.Range(0, transform.childCount).Select(i => transform.GetChild(i).GetComponent<CrossSection>()).ToArray();
+
+        var mesh = CreatePathMesh();
+        _meshFilter.mesh = mesh;
     }
 
     private ShapeData[] GetCrossSections()
     {
-        _crossSections = GetComponentsInChildren<CrossSection>().Select(cs => cs.GetCrossSectionData()).ToArray();
-        return _crossSections;
+        var cs = crossSections.Select(cs => cs.GetCrossSectionData()).OrderBy(cs => cs.GetT()).ToArray();
+        return cs;
     }
 
     private void OnDrawGizmos()
     {
-        var mesh = CreatePathMesh();
-        _meshFilter.mesh = mesh;
-
-        Triangles = mesh.triangles;
-
-        // Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
+        var userShapes = GetCrossSections();
+        userShapes = ShapeInterpolator.ExpandShapes(userShapes);
+        foreach (var cs in userShapes)
+        {
+            Vector3[] array = cs.Get3DPoints();
+            for (int i = 0; i < array.Length; i++)
+            {
+                Vector3 v = array[i];
+                Vector3 v2 = array[(i + 1) % array.Length];
+                Gizmos.DrawSphere(v, 0.05f);
+                Gizmos.DrawLine(v, v2);
+                Handles.Label(v, $"{i}");
+            }
+        }
     }
 
     private Mesh CreatePathMesh()
@@ -47,8 +57,8 @@ public class Extruder : MonoBehaviour
         var path = _pathCreator.path;
 
         // Get all the cross sections and expand them
-        var crossSections = GetCrossSections();
-        crossSections = ShapeInterpolator.ExpandShapes(crossSections);
+        var userShapes = GetCrossSections();
+        userShapes = ShapeInterpolator.ExpandShapes(userShapes);
 
         var shapes = new ShapeData[path.NumPoints];
         for (int i = 0; i < path.NumPoints; i++)
@@ -60,7 +70,7 @@ public class Extruder : MonoBehaviour
             var t = path.GetClosestTimeOnPath(point);
 
             // Find the cross sections that the point lies between using t
-            var (startShape, endShape, t2) = GetCrossSections(crossSections, t);
+            var (startShape, endShape, t2) = GetCrossSections(userShapes, t);
 
             // Find the shape of the point using the cross sections using t2
             var middleShape = ShapeInterpolator.MorphShape(startShape, endShape, t2, t);
@@ -69,7 +79,7 @@ public class Extruder : MonoBehaviour
             shapes[i] = middleShape;
         }
 
-        var mesh = CreateMesh(shapes, crossSections[0], crossSections[crossSections.Length - 1]);
+        var mesh = CreateMesh(shapes, userShapes[0], userShapes[userShapes.Length - 1]);
         return mesh;
     }
 

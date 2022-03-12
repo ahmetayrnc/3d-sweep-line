@@ -1,7 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
-using System.Collections;
-using System;
+using System.Linq;
 using static ProjectUtil;
 
 
@@ -17,7 +16,7 @@ public class ShapeInterpolator : MonoBehaviour
 
         // find the shape with the max numPoints
         var maxIndex = 0;
-        for (int i = 0; i < shapes.Length; i++)
+        for (int i = 1; i < shapes.Length; i++)
         {
             var numPoints = shapes[i].GetNumPoints();
             if (numPoints > shapes[maxIndex].GetNumPoints())
@@ -30,28 +29,26 @@ public class ShapeInterpolator : MonoBehaviour
         // add the shapes that changed to the stack and change their neighbors aswell
         toBeProcessed.Push(maxIndex);
 
-        var count = 0;
-        while (toBeProcessed.Count > 0 && count < 10)
+        while (toBeProcessed.Count > 0)
         {
             var index = toBeProcessed.Pop();
-            processed[index] = true;
 
             var nextIndex = index + 1;
             var prevIndex = index - 1;
-            AlignAndExpandShape(shapes, index, nextIndex);
-            AlignAndExpandShape(shapes, index, prevIndex);
 
             if (nextIndex < shapes.Length && !processed[nextIndex])
             {
-                toBeProcessed.Push(nextIndex);
+                AlignAndExpandShape(shapes, index, nextIndex); // process it
+                toBeProcessed.Push(nextIndex); // add to the stack to process its neighbors
             }
 
             if (prevIndex >= 0 && !processed[prevIndex])
             {
+                AlignAndExpandShape(shapes, index, prevIndex);
                 toBeProcessed.Push(prevIndex);
             }
 
-            count++;
+            processed[index] = true;
         }
 
         return shapes;
@@ -78,7 +75,11 @@ public class ShapeInterpolator : MonoBehaviour
     private static Vector2[] ExpandShape(Vector2[] referenceShape, Vector2[] originalShape)
     {
         var expandedShape = new Vector2[referenceShape.Length];
-        var skip = Mathf.CeilToInt((float)referenceShape.Length / originalShape.Length);
+        var skip = Mathf.CeilToInt((float)(referenceShape.Length) / originalShape.Length);
+        if ((originalShape.Length - 1) * skip >= referenceShape.Length)
+        {
+            skip--;
+        }
 
         // Now we will fill in the expandedShape
         for (var i = 0; i < expandedShape.Length; i++)
@@ -95,8 +96,13 @@ public class ShapeInterpolator : MonoBehaviour
                 var anchor1Index = Mathf.Min(i / skip, originalShape.Length - 1); // the anchor point before this vertex
                 var anchor2Index = (Mathf.Min(i / skip + 1, originalShape.Length) % originalShape.Length); // the anchor point after this vertex
 
+                // if (referenceShape.Length == 9)
+                // {
+                //     Debug.Log($"rs: {referenceShape.Length}, os:{originalShape.Length}, skip: {skip}, i: {i}, i1: {anchor1Index}, i2: {anchor2Index}");
+                // }
+
                 // Interpolate between the anchors to create new vertices
-                var t = InverseLerpOnPolygon(referenceShape, anchor1Index * skip, anchor2Index * skip, i);
+                var t = InverseLerpOnPolygon(referenceShape, anchor1Index * skip, Mathf.Min(anchor2Index * skip, referenceShape.Length - 1), i);
                 var newVertex = Vector2.Lerp(originalShape[anchor1Index], originalShape[anchor2Index], t);
 
                 expandedShape[i] = newVertex;
@@ -104,6 +110,13 @@ public class ShapeInterpolator : MonoBehaviour
         }
 
         return expandedShape;
+    }
+
+    // we know that 
+    private static int[] DivideIntoKPieces(int[] a, int k)
+    {
+
+        return new int[0];
     }
 
     // Both shapes are the same sizes right now, we will jsut align them
@@ -129,8 +142,6 @@ public class ShapeInterpolator : MonoBehaviour
     {
         int numVertices = firstShape.GetNumPoints();
         var vertices = new Vector2[numVertices];
-
-        Debug.Assert(firstShape.GetNumPoints() == secondShape.GetNumPoints(), $"{firstShape.GetNumPoints()} == {secondShape.GetNumPoints()}");
 
         for (int i = 0; i < numVertices; i++)
         {

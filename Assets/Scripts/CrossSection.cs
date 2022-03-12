@@ -2,7 +2,6 @@ using UnityEngine;
 using PathCreation;
 using System.Linq;
 using Vector3Extension;
-using UnityEditor;
 
 [ExecuteInEditMode]
 [RequireComponent(typeof(MeshFilter))]
@@ -15,11 +14,13 @@ public class CrossSection : MonoBehaviour
     [Range(3, 12)]
     public int numPoints = 3;
 
-    [Range(0, 2 * Mathf.PI)]
+    [Range(-180, 180)]
     public float rotation = 0;
 
-    public Vector2[] coords2D;
-    public Vector3[] coord3D;
+    public Vector2 scale;
+
+    // public Vector2[] coords2D;
+    // public Vector3[] coord3D;
 
     // Internal variables
     private ShapeData _crossSectionData;
@@ -51,9 +52,13 @@ public class CrossSection : MonoBehaviour
     private void Update()
     {
         _crossSectionData = new ShapeData(CreatePoints(), _pathCreator.path, t);
+        transform.position = _pathCreator.path.GetPointAtTime(t);
+        transform.rotation = _pathCreator.path.GetRotation(t);
+        transform.rotation *= Quaternion.Euler(0, 0, rotation);
+        transform.localScale = scale;
 
-        coords2D = _crossSectionData.Get2DPoints();
-        coord3D = _crossSectionData.Get3DPoints();
+        // coords2D = _crossSectionData.Get2DPoints();
+        // coord3D = _crossSectionData.Get3DPoints();
     }
 
     private Vector2[] CreatePoints()
@@ -62,10 +67,13 @@ public class CrossSection : MonoBehaviour
         var vertices = new Vector2[numPoints];
         for (int i = 0; i < numPoints; i++)
         {
-            var x = Mathf.Sin(rotation + i * angle);
-            var y = Mathf.Cos(rotation + i * angle);
+            var x = Mathf.Sin(i * angle);
+            var y = Mathf.Cos(i * angle);
             vertices[i] = new Vector2(x, y);
         }
+
+        vertices = vertices.Select(v => (Vector2)(Quaternion.Euler(0, 0, rotation) * v)).Select(v => Vector2.Scale(v, scale)).ToArray();
+
         return vertices;
     }
 
@@ -73,7 +81,7 @@ public class CrossSection : MonoBehaviour
     private Mesh CreateMesh()
     {
         var vertices = CreatePoints();
-        coords2D = vertices;
+        // coords2D = vertices;
 
         // Mesh creation
         var vertices3D = vertices.Select(v => v.To3DPoint(_pathCreator.path, t)).ToArray();
@@ -99,9 +107,9 @@ public class CrossSection : MonoBehaviour
         for (var i = 0; i < mesh.vertices.Length; i++)
         {
             var v = mesh.vertices[i];
-            Handles.Label(v, $"{i}");
+            // Handles.Label(v, $"{i}");
         }
 
-        Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, transform.localScale);
+        Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
     }
 }
