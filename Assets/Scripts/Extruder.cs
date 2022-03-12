@@ -1,7 +1,6 @@
 using UnityEngine;
 using PathCreation;
 using System.Linq;
-using Vector3Extension;
 using static ProjectUtil;
 
 [ExecuteInEditMode]
@@ -11,42 +10,32 @@ public class Extruder : MonoBehaviour
 {
     public int[] Triangles;
     private PathCreator _pathCreator;
-    private CrossSectionData[] _crossSections;
+    private ShapeData[] _crossSections;
     private MeshFilter _meshFilter;
 
-    private CrossSectionData[] GetCrossSections()
-    {
-        if (_crossSections == null)
-        {
-            _crossSections = GetComponentsInChildren<CrossSection>().Select(cs => cs.GetCrossSectionData()).ToArray();
-        }
-
-        return _crossSections;
-    }
-
-    private PathCreator GetPathCreator()
+    private void Awake()
     {
         if (_pathCreator == null)
         {
             _pathCreator = GetComponentInParent<PathCreator>();
         }
-        return _pathCreator;
-    }
 
-    private MeshFilter GetMeshFilter()
-    {
         if (_meshFilter == null)
         {
             _meshFilter = GetComponent<MeshFilter>();
         }
-        return _meshFilter;
+    }
+
+    private ShapeData[] GetCrossSections()
+    {
+        _crossSections = GetComponentsInChildren<CrossSection>().Select(cs => cs.GetCrossSectionData()).ToArray();
+        return _crossSections;
     }
 
     private void OnDrawGizmos()
     {
         var mesh = CreatePathMesh();
-        var meshFilter = GetMeshFilter();
-        meshFilter.mesh = mesh;
+        _meshFilter.mesh = mesh;
 
         Triangles = mesh.triangles;
 
@@ -55,12 +44,13 @@ public class Extruder : MonoBehaviour
 
     private Mesh CreatePathMesh()
     {
-        var pathCreator = GetPathCreator();
-        var path = pathCreator.path;
-        var oldCrossSections = GetCrossSections();
-        var crossSections = ShapeInterpolator.ExpandShapes(oldCrossSections.Select(cs => cs.Get2DPoints()).ToArray());
+        var path = _pathCreator.path;
 
-        var shapes = new Vector3[path.NumPoints][];
+        // Get all the cross sections and expand them
+        var crossSections = GetCrossSections();
+        crossSections = ShapeInterpolator.ExpandShapes(crossSections);
+
+        var shapes = new ShapeData[path.NumPoints];
         for (int i = 0; i < path.NumPoints; i++)
         {
             // Get the point on the vertex path
@@ -70,10 +60,10 @@ public class Extruder : MonoBehaviour
             var t = path.GetClosestTimeOnPath(point);
 
             // Find the cross sections that the point lies between using t
-            var (_, _, t2) = GetCrossSections(oldCrossSections, t);
+            var (startShape, endShape, t2) = GetCrossSections(crossSections, t);
 
             // Find the shape of the point using the cross sections using t2
-            var middleShape = ShapeInterpolator.MorphShape(crossSections[0], crossSections[1], t2).To3DPoints(path, t);
+            var middleShape = ShapeInterpolator.MorphShape(startShape, endShape, t2, t);
 
             // store the created shape
             shapes[i] = middleShape;
@@ -83,26 +73,25 @@ public class Extruder : MonoBehaviour
         return mesh;
     }
 
-    private static Mesh CreateMesh(Vector3[][] shapes, Vector2[] start, Vector2[] end)
+    private static Mesh CreateMesh(ShapeData[] shapes, ShapeData start, ShapeData end)
     {
         // Create the triangles for the middle sections
         var shapeTriangles = new int[shapes.Length - 1][];
         for (var i = 0; i < shapes.Length - 1; i++)
         {
-            var shape = shapes[i];
-            var shapeLength = shape.Length;
+            var shapeLength = shapes[i].GetNumPoints();
 
             shapeTriangles[i] = MakeTrianglesForShape(Enumerable.Range(i * shapeLength, shapeLength).ToArray(),
                     Enumerable.Range((i + 1) * shapeLength, shapeLength).ToArray());
         }
 
-        var vertices = ConcatArrays(shapes);
+        var vertices = ConcatArrays(shapes.Select(s => s.Get3DPoints()).ToArray());
         var triangles = ConcatArrays(shapeTriangles);
 
         // create the triangles for the end sections
-        var triangulator = new Triangulator(start);
+        var triangulator = new Triangulator(start.Get2DPoints());
         var startShapeTriangles = triangulator.Triangulate();
-        triangulator = new Triangulator(end);
+        triangulator = new Triangulator(end.Get2DPoints());
         var endShapeTriangles = triangulator.Triangulate();
 
         // the result of the triangluation has the indices starting from 0, convert them to the correct ones.
@@ -162,7 +151,7 @@ public class Extruder : MonoBehaviour
     }
 
     // Find the cross sections that are to the left and to the right of the point t
-    private (CrossSectionData a, CrossSectionData b, float t2) GetCrossSections(CrossSectionData[] crossSections, float t)
+    private (ShapeData a, ShapeData b, float t2) GetCrossSections(ShapeData[] crossSections, float t)
     {
         // No cross sections defined, we can't extrude a path.
         if (crossSections.Length == 0)
@@ -180,13 +169,13 @@ public class Extruder : MonoBehaviour
         for (int i = 1; i < crossSections.Length; i++)
         {
             var crossSection = crossSections[i];
-            if (crossSection.t < t)
+            if (crossSection.GetT() < t)
             {
                 continue;
             }
 
             var prevCrossSection = crossSections[i - 1];
-            var t2 = Mathf.InverseLerp(prevCrossSection.t, crossSection.t, t);
+            var t2 = Mathf.InverseLerp(prevCrossSection.GetT(), crossSection.GetT(), t);
             return (prevCrossSection, crossSection, t2);
         }
 

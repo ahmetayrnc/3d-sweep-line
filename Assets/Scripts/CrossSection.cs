@@ -22,13 +22,13 @@ public class CrossSection : MonoBehaviour
     public Vector3[] coord3D;
 
     // Internal variables
-    private CrossSectionData _crossSectionData;
+    private ShapeData _crossSectionData;
     private PathCreator _pathCreator;
     private MeshFilter _meshFilter;
     private MeshRenderer _meshRenderer;
 
     // --- Public Methods ---
-    public CrossSectionData GetCrossSectionData()
+    public ShapeData GetCrossSectionData()
     {
         return _crossSectionData;
     }
@@ -45,12 +45,12 @@ public class CrossSection : MonoBehaviour
             _meshFilter = GetComponent<MeshFilter>();
         }
 
-        _crossSectionData = new CrossSectionData(CreatePoints(), _pathCreator.path, t);
+        _crossSectionData = new ShapeData(CreatePoints(), _pathCreator.path, t);
     }
 
     private void Update()
     {
-        _crossSectionData = new CrossSectionData(CreatePoints(), _pathCreator.path, t);
+        _crossSectionData = new ShapeData(CreatePoints(), _pathCreator.path, t);
 
         coords2D = _crossSectionData.Get2DPoints();
         coord3D = _crossSectionData.Get3DPoints();
@@ -103,31 +103,5 @@ public class CrossSection : MonoBehaviour
         }
 
         Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, transform.localScale);
-    }
-}
-
-public class CrossSectionData
-{
-    public VertexPath path;
-    public float t;
-    public Vector2[] points;
-
-    public CrossSectionData(Vector2[] points, VertexPath path, float t)
-    {
-        this.points = points;
-        this.t = t;
-        this.path = path;
-    }
-
-    public Vector2[] Get2DPoints()
-    {
-        return points;
-    }
-
-    // Uses the actual 3D coordinate system
-    public Vector3[] Get3DPoints()
-    {
-        var points3D = points.Select(p => p.To3DPoint(path, t)).ToArray();
-        return points3D;
     }
 }

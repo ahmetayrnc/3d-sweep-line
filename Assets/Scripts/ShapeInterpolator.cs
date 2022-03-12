@@ -1,4 +1,7 @@
 using UnityEngine;
+using System.Collections.Generic;
+using System.Collections;
+using System;
 using static ProjectUtil;
 
 
@@ -7,15 +10,45 @@ public class ShapeInterpolator : MonoBehaviour
     // This function will get all the cross sections and will expand all cross sections
     // such that all the cross sections will be aligned and have the same number of vertices
     // This makes interpolation super easy
-    public static Vector2[][] ExpandShapes(Vector2[][] shapes)
+    public static ShapeData[] ExpandShapes(ShapeData[] shapes)
     {
-        // find the shape with max numVertices
-        // convert its neighbors using pairshapes
-        // repeat
-        Vector2[] newShape;
-        newShape = AlignShape(shapes[0], shapes[1]);
-        newShape = ExpandShape(shapes[0], newShape);
-        shapes[1] = newShape;
+        var stack = new Stack<int>();
+        var maxIndex = 0;
+        for (int i = 0; i < shapes.Length; i++)
+        {
+            var numPoints = shapes[i].GetNumPoints();
+            if (numPoints > shapes[maxIndex].GetNumPoints())
+            {
+                maxIndex = i;
+            }
+        }
+        stack.Push(maxIndex);
+
+        while (stack.Count > 0)
+        {
+            var index = stack.Pop();
+            if (index + 1 < shapes.Length)
+            {
+                if (shapes[index].GetNumPoints() != shapes[index + 1].GetNumPoints())
+                {
+                    var nextShape = AlignShape(shapes[index].Get2DPoints(), shapes[index + 1].Get2DPoints());
+                    nextShape = ExpandShape(shapes[index].Get2DPoints(), nextShape);
+                    shapes[index + 1].UpdateShape(nextShape);
+                    stack.Push(index + 1);
+                }
+            }
+
+            if (index - 1 >= 0)
+            {
+                if (shapes[index].GetNumPoints() != shapes[index - 1].GetNumPoints())
+                {
+                    var nextShape = AlignShape(shapes[index].Get2DPoints(), shapes[index - 1].Get2DPoints());
+                    nextShape = ExpandShape(shapes[index].Get2DPoints(), nextShape);
+                    shapes[index - 1].UpdateShape(nextShape);
+                    stack.Push(index - 1);
+                }
+            }
+        }
 
         return shapes;
     }
@@ -74,18 +107,20 @@ public class ShapeInterpolator : MonoBehaviour
     // Returns the vertices of the shape between polygon1 and polygon2 at time t
     // This function is super simple because we assume that the firstShape and the secondShape have the same number
     // of vertices. Additionally, we also assume that these shapes are aligned and we can just connect the vertices of them in order
-    public static Vector2[] MorphShape(Vector2[] firstShape, Vector2[] secondShape, float t)
+    public static ShapeData MorphShape(ShapeData firstShape, ShapeData secondShape, float t, float tPath)
     {
-        int numVertices = firstShape.Length;
+        int numVertices = firstShape.GetNumPoints();
         var vertices = new Vector2[numVertices];
+
+        Debug.Assert(firstShape.GetNumPoints() == secondShape.GetNumPoints(), $"{firstShape.GetNumPoints()} == {secondShape.GetNumPoints()}");
 
         for (int i = 0; i < numVertices; i++)
         {
-            var x = Mathf.Lerp(firstShape[i].x, secondShape[i].x, t);
-            var y = Mathf.Lerp(firstShape[i].y, secondShape[i].y, t);
+            var x = Mathf.Lerp(firstShape.Get2DPoints()[i].x, secondShape.Get2DPoints()[i].x, t);
+            var y = Mathf.Lerp(firstShape.Get2DPoints()[i].y, secondShape.Get2DPoints()[i].y, t);
             vertices[i] = new Vector2(x, y);
         }
 
-        return vertices;
+        return new ShapeData(vertices, firstShape.GetPath(), tPath);
     }
 }
