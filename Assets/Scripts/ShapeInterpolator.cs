@@ -1,6 +1,10 @@
 using UnityEngine;
-using System.Linq;
+using System;
+using System.Collections.Generic;
+using System.Collections;
 using static ProjectUtil;
+using System.Linq;
+
 
 public class ShapeInterpolator : MonoBehaviour
 {
@@ -16,38 +20,60 @@ public class ShapeInterpolator : MonoBehaviour
     }
 
     // Reference Shape has more vertices
-    public static Vector2[] ExpandShape(Vector2[] referenceShape, Vector2[] originalShape)
+    public static Vector2[] ExpandShape(Vector2[] modelShape, Vector2[] originalShape)
     {
-        var fixedShape = new Vector2[referenceShape.Length];
-        var skip = referenceShape.Length / originalShape.Length + 1;
+        var expandedShape = new Vector2[modelShape.Length];
+        var skip = Mathf.FloorToInt((float)modelShape.Length / originalShape.Length);
 
-        for (var i = 0; i < originalShape.Length; i++)
+        // Now we will fill in the expandedShape
+        for (var i = 0; i < expandedShape.Length; i++)
         {
-            var newIndex = i * skip;
-            fixedShape[newIndex] = originalShape[i];
-        }
-
-        for (var i = 0; i < referenceShape.Length; i++)
-        {
-            // original vertex
-            if (i % skip == 0)
+            // This means that this is an index of an anchor point so we can keep it as is
+            if (i % skip == 0 && i / skip < originalShape.Length)
             {
-                fixedShape[i] = originalShape[i / skip];
+                expandedShape[i] = originalShape[i / skip];
             }
             // need to create a vertex
             else
             {
-                var t = InverseLerp(referenceShape[i - 1], referenceShape[(i + 1) % referenceShape.Length], referenceShape[i]);
-                var newVertex = Vector2.Lerp(originalShape[i / skip], originalShape[(i / skip + 1) % originalShape.Length], t);
-                fixedShape[i] = newVertex;
+                var anchor1Index = Mathf.Min(i / skip, originalShape.Length - 1); // the anchor point before this vertex
+                var anchor2Index = (Mathf.Min(i / skip + 1, originalShape.Length) % originalShape.Length); // the anchor point after this vertex
+
+                var t = InverseLerp(modelShape[anchor1Index * skip], modelShape[anchor2Index * skip], modelShape[i]);
+                var newVertex = Vector2.Lerp(originalShape[anchor1Index], originalShape[anchor2Index], t);
+
+                Debug.Log($"i:{i}, anchor1: {anchor1Index}, anchor2: {anchor2Index}, t: {t}");
+
+                expandedShape[i] = newVertex;
             }
         }
 
-        return fixedShape;
+        return expandedShape;
     }
 
+    // for (var i = 0; i < expandedShape.Length; i++)
+    //     {
+    //         // This means that this is an index of an anchor point so we can keep it as is
+    //         if (i % skip == 0 && i / skip < originalShape.Length)
+    //         {
+    //             expandedShape[i] = originalShape[i / skip];
+    //         }
+    //         // need to create a vertex
+    //         else
+    //         {
+    //             var anchor1Index = (i / skip); // the anchor point before this vertex
+    //             var anchor2Index = ((i / skip + 1) % originalShape.Length); // the anchor point after this vertex
+    //             Debug.Log($"i:{i}, anchor1: {anchor1Index}, anchor2: {anchor2Index}");
+
+    //             var t = InverseLerp(modelShape[anchor1Index * skip], modelShape[anchor2Index * skip], modelShape[i]);
+    //             var newVertex = Vector2.Lerp(originalShape[anchor1Index], originalShape[anchor2Index], t);
+
+    //             expandedShape[i] = newVertex;
+    //         }
+    //     }
+
     // Both shapes are the same sizes right now, we will jsut align them
-    public static Vector2[] AlignShapes(Vector2[] shape1, Vector2[] shape2)
+    private static Vector2[] AlignShapes(Vector2[] shape1, Vector2[] shape2)
     {
         // find the closest point to the first vertex of shape 1 in shape2, that gives the offset
         var offset = GetClosestPointIndex(shape2, shape1[0]);

@@ -48,6 +48,8 @@ public class Extruder : MonoBehaviour
         meshFilter.mesh = mesh;
 
         Triangles = mesh.triangles;
+
+        Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
     }
 
     private Mesh CreatePathMesh()
@@ -106,7 +108,7 @@ public class Extruder : MonoBehaviour
         endShapeTriangles = endShapeTriangles.Select(i => vertices.Length - i - 1).ToArray();
 
         // Add the start and end triangles
-        triangles = ConcatArrays(triangles, startShapeTriangles, endShapeTriangles);
+        // triangles = ConcatArrays(triangles, startShapeTriangles, endShapeTriangles);
 
         // Create the mesh
         var mesh = new Mesh

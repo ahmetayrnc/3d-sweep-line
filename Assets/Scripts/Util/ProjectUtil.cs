@@ -42,7 +42,7 @@ public static class ProjectUtil
     {
         var AB = b - a;
         var AV = value - a;
-        var result = (AV - AB).sqrMagnitude / (AB - AB).sqrMagnitude;
+        var result = Vector2.Dot(AV, AB) / Vector2.Dot(AB, AB);
         return result;
     }
 }

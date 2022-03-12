@@ -129,6 +129,6 @@ public class CrossSection : MonoBehaviour
     {
         var meshFilter = GetMeshFilter();
         meshFilter.sharedMesh.vertices = Get3DPoints();
-        Gizmos.DrawWireMesh(meshFilter.sharedMesh, -1, Vector3.zero, Quaternion.identity, transform.localScale);
+        // Gizmos.DrawWireMesh(meshFilter.sharedMesh, -1, Vector3.zero, Quaternion.identity, transform.localScale);
     }
 }
