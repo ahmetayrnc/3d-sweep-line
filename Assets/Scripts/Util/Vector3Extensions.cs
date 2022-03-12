@@ -28,8 +28,8 @@ namespace Vector3Extension
         {
             var point = (Vector3)point2D;
 
-            var position = path.GetPointAtTime(t, EndOfPathInstruction.Stop);
-            var direction = path.GetDirection(t, EndOfPathInstruction.Stop);
+            var position = path.GetPointAtTime(t);
+            var direction = path.GetDirection(t);
             var rotation = Quaternion.FromToRotation(Vector3.forward, direction);
 
             point = rotation * point;
