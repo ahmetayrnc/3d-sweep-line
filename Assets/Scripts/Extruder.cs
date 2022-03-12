@@ -49,7 +49,7 @@ public class Extruder : MonoBehaviour
 
         Triangles = mesh.triangles;
 
-        Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
+        // Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
     }
 
     private Mesh CreatePathMesh()
@@ -57,7 +57,7 @@ public class Extruder : MonoBehaviour
         var pathCreator = GetPathCreator();
         var path = pathCreator.path;
         var oldCrossSections = GetCrossSections();
-        var crossSections = ShapeInterpolator.FixShapes(oldCrossSections.Select(cs => cs.Get2DPoints()).ToArray());
+        var crossSections = ShapeInterpolator.ExpandShapes(oldCrossSections.Select(cs => cs.Get2DPoints()).ToArray());
 
         var shapes = new Vector3[path.NumPoints][];
         for (int i = 0; i < path.NumPoints; i++)
@@ -108,7 +108,7 @@ public class Extruder : MonoBehaviour
         endShapeTriangles = endShapeTriangles.Select(i => vertices.Length - i - 1).ToArray();
 
         // Add the start and end triangles
-        // triangles = ConcatArrays(triangles, startShapeTriangles, endShapeTriangles);
+        triangles = ConcatArrays(triangles, startShapeTriangles, endShapeTriangles);
 
         // Create the mesh
         var mesh = new Mesh

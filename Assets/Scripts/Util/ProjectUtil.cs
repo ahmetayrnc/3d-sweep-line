@@ -1,7 +1,6 @@
 using System;
 using System.Linq;
 using UnityEngine;
-using MinByExtension;
 
 
 public static class ProjectUtil
@@ -38,12 +37,27 @@ public static class ProjectUtil
         return minIndex;
     }
 
-    public static float InverseLerp(Vector2 a, Vector2 b, Vector2 value)
+    public static float InverseLerpOnPolygon(Vector2[] polygon, int startIndex, int endIndex, int midIndex)
     {
-        var AB = b - a;
-        var AV = value - a;
-        var result = Vector2.Dot(AV, AB) / Vector2.Dot(AB, AB);
+        var diff1 = DistanceBetweenPointsOnPolygon(polygon, startIndex, midIndex);
+        var diff2 = DistanceBetweenPointsOnPolygon(polygon, startIndex, endIndex);
+        var result = (diff1 / diff2);
         return result;
+    }
+
+    public static float DistanceBetweenPointsOnPolygon(Vector2[] polygon, int index1, int index2)
+    {
+        var distance = 0f;
+        var to = index2 == 0 ? polygon.Length : index2;
+
+        for (var i = index1; i < to; i++)
+        {
+            var vertex1 = polygon[i];
+            var vertex2 = polygon[(i + 1) % polygon.Length];
+            distance += Vector2.Distance(vertex1, vertex2);
+        }
+
+        return distance;
     }
 }
 

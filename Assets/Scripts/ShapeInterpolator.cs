@@ -1,14 +1,13 @@
 using UnityEngine;
-using System;
-using System.Collections.Generic;
-using System.Collections;
 using static ProjectUtil;
-using System.Linq;
 
 
 public class ShapeInterpolator : MonoBehaviour
 {
-    public static Vector2[][] FixShapes(Vector2[][] shapes)
+    // This function will get all the cross sections and will expand all cross sections
+    // such that all the cross sections will be aligned and have the same number of vertices
+    // This makes interpolation super easy
+    public static Vector2[][] ExpandShapes(Vector2[][] shapes)
     {
         // find the shape with max numVertices
         // convert its neighbors using pairshapes
@@ -20,10 +19,13 @@ public class ShapeInterpolator : MonoBehaviour
     }
 
     // Reference Shape has more vertices
-    public static Vector2[] ExpandShape(Vector2[] modelShape, Vector2[] originalShape)
+    // This functions gets 2 polygons, referenceShape and originalShape
+    // expands the originalShape by adding new vertices.
+    // The location of the newly added vertices respects the relative distances on the referenceShape 
+    private static Vector2[] ExpandShape(Vector2[] referenceShape, Vector2[] originalShape)
     {
-        var expandedShape = new Vector2[modelShape.Length];
-        var skip = Mathf.FloorToInt((float)modelShape.Length / originalShape.Length);
+        var expandedShape = new Vector2[referenceShape.Length];
+        var skip = Mathf.CeilToInt((float)referenceShape.Length / originalShape.Length);
 
         // Now we will fill in the expandedShape
         for (var i = 0; i < expandedShape.Length; i++)
@@ -36,13 +38,13 @@ public class ShapeInterpolator : MonoBehaviour
             // need to create a vertex
             else
             {
+                // Find the anchor points for interpolation
                 var anchor1Index = Mathf.Min(i / skip, originalShape.Length - 1); // the anchor point before this vertex
                 var anchor2Index = (Mathf.Min(i / skip + 1, originalShape.Length) % originalShape.Length); // the anchor point after this vertex
 
-                var t = InverseLerp(modelShape[anchor1Index * skip], modelShape[anchor2Index * skip], modelShape[i]);
+                // Interpolate between the anchors to create new vertices
+                var t = InverseLerpOnPolygon(referenceShape, anchor1Index * skip, anchor2Index * skip, i);
                 var newVertex = Vector2.Lerp(originalShape[anchor1Index], originalShape[anchor2Index], t);
-
-                Debug.Log($"i:{i}, anchor1: {anchor1Index}, anchor2: {anchor2Index}, t: {t}");
 
                 expandedShape[i] = newVertex;
             }
@@ -50,27 +52,6 @@ public class ShapeInterpolator : MonoBehaviour
 
         return expandedShape;
     }
-
-    // for (var i = 0; i < expandedShape.Length; i++)
-    //     {
-    //         // This means that this is an index of an anchor point so we can keep it as is
-    //         if (i % skip == 0 && i / skip < originalShape.Length)
-    //         {
-    //             expandedShape[i] = originalShape[i / skip];
-    //         }
-    //         // need to create a vertex
-    //         else
-    //         {
-    //             var anchor1Index = (i / skip); // the anchor point before this vertex
-    //             var anchor2Index = ((i / skip + 1) % originalShape.Length); // the anchor point after this vertex
-    //             Debug.Log($"i:{i}, anchor1: {anchor1Index}, anchor2: {anchor2Index}");
-
-    //             var t = InverseLerp(modelShape[anchor1Index * skip], modelShape[anchor2Index * skip], modelShape[i]);
-    //             var newVertex = Vector2.Lerp(originalShape[anchor1Index], originalShape[anchor2Index], t);
-
-    //             expandedShape[i] = newVertex;
-    //         }
-    //     }
 
     // Both shapes are the same sizes right now, we will jsut align them
     private static Vector2[] AlignShapes(Vector2[] shape1, Vector2[] shape2)
@@ -90,6 +71,8 @@ public class ShapeInterpolator : MonoBehaviour
     }
 
     // Returns the vertices of the shape between polygon1 and polygon2 at time t
+    // This function is super simple because we assume that the firstShape and the secondShape have the same number
+    // of vertices. Additionally, we also assume that these shapes are aligned and we can just connect the vertices of them in order
     public static Vector2[] MorphShape(Vector2[] firstShape, Vector2[] secondShape, float t)
     {
         int numVertices = firstShape.Length;

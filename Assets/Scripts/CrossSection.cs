@@ -11,7 +11,7 @@ public class CrossSection : MonoBehaviour
     [Range(0, 1)]
     public float t = 0;
 
-    [Range(3, 8)]
+    [Range(3, 12)]
     public int numPoints = 3;
 
     [Range(0, 2 * Mathf.PI)]
