@@ -32,6 +32,7 @@ public class Extruder : MonoBehaviour
 
     private ShapeData[] GetCrossSections()
     {
+        crossSections = GetComponentsInChildren<CrossSection>();
         var cs = crossSections.Select(cs => cs.GetCrossSectionData()).OrderBy(cs => cs.GetT()).ToArray();
         return cs;
     }
