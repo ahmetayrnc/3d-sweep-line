@@ -73,7 +73,7 @@ public class CrossSection : MonoBehaviour
             vertices[i] = new Vector2(x, y);
         }
 
-        vertices = vertices.Select(v => (Vector2)(Quaternion.Euler(0, 0, rotation) * v)).Select(v => Vector2.Scale(v, scale)).ToArray();
+        vertices = vertices.Select(v => Vector2.Scale(v, scale)).Select(v => (Vector2)(Quaternion.Euler(0, 0, rotation) * v)).ToArray();
 
         return vertices;
     }
