@@ -26,7 +26,9 @@ public class Extruder : MonoBehaviour
         Debug.Assert(_meshFilter != null, "meshFilter null");
         Debug.Assert(_pathCreator != null, "pathCreaor null");
         Debug.Assert(crossSections != null, "crossSections null");
-        var mesh = CreatePathMesh();
+
+        var (shapes, startShape, endShape) = CreateAllShapes();
+        var mesh = CombineShapesIntoMesh(shapes, startShape, endShape);
         _meshFilter.mesh = mesh;
     }
 
@@ -37,11 +39,14 @@ public class Extruder : MonoBehaviour
         return cs;
     }
 
+    // Used to draw the vertices on the cross sections
     private void OnDrawGizmos()
     {
-        var userShapes = GetCrossSections();
-        userShapes = ShapeInterpolator.ExpandShapes(userShapes);
-        foreach (var cs in userShapes)
+        var shapes = GetCrossSections();
+        shapes = ShapeInterpolator.ExpandShapes(shapes);
+
+        // var (shapes, startShape, endShape) = CreateAllShapes();
+        foreach (var cs in shapes)
         {
             Vector3[] array = cs.Get3DPoints();
             for (int i = 0; i < array.Length; i++)
@@ -55,7 +60,7 @@ public class Extruder : MonoBehaviour
         }
     }
 
-    private Mesh CreatePathMesh()
+    private (ShapeData[] shapes, ShapeData, ShapeData) CreateAllShapes()
     {
         var path = _pathCreator.path;
 
@@ -82,11 +87,10 @@ public class Extruder : MonoBehaviour
             shapes[i] = middleShape;
         }
 
-        var mesh = CreateMesh(shapes, userShapes[0], userShapes[userShapes.Length - 1]);
-        return mesh;
+        return (shapes, userShapes[0], userShapes[userShapes.Length - 1]);
     }
 
-    private static Mesh CreateMesh(ShapeData[] shapes, ShapeData start, ShapeData end)
+    private Mesh CombineShapesIntoMesh(ShapeData[] shapes, ShapeData start, ShapeData end)
     {
         // Create the triangles for the middle sections
         var shapeTriangles = new int[shapes.Length - 1][];

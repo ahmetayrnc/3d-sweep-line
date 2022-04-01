@@ -9,26 +9,35 @@ public class CrossSection : MonoBehaviour
 {
     // Configuration
     [Range(0, 1)]
+    [Tooltip("Position on the curve. From 0 to 1. 0 being the start, 1 being the end of the curve.")]
     public float t = 0;
 
     [Range(3, 12)]
     public int numPoints = 3;
 
     [Range(-180, 180)]
+    [Tooltip("Rotation of the cross section. This rotation is perpendicular to the curve direction and curve normal.")]
     public float rotation = 0;
 
+    [Tooltip("Scaling of the cross section.")]
     public Vector2 scale = Vector2.one;
 
-    // public Vector2[] coords2D;
-    // public Vector3[] coord3D;
+    //
+    // --- Internal variables ---
+    //
 
-    // Internal variables
+    // Actual data that reprsents a cross section
     private ShapeData _crossSectionData;
+    // Reference to the path creator object
     private PathCreator _pathCreator;
+    // Mesh filter to store the mesh representing the cross section
     private MeshFilter _meshFilter;
+    // Renderer of the mesh
     private MeshRenderer _meshRenderer;
 
+    //
     // --- Public Methods ---
+    //
     public ShapeData GetCrossSectionData()
     {
         _crossSectionData = new ShapeData(CreatePoints(), _pathCreator.path, t);
@@ -52,14 +61,21 @@ public class CrossSection : MonoBehaviour
 
     private void Update()
     {
-        _crossSectionData = new ShapeData(CreatePoints(), _pathCreator.path, t);
-        transform.position = _pathCreator.path.GetPointAtTime(t);
-        transform.rotation = _pathCreator.path.GetRotation(t);
-        transform.rotation *= Quaternion.Euler(0, 0, rotation);
-        transform.localScale = scale;
+        UpdateUnityTransform();
+    }
 
-        // coords2D = _crossSectionData.Get2DPoints();
-        // coord3D = _crossSectionData.Get3DPoints();
+    private void UpdateUnityTransform()
+    {
+        _crossSectionData = new ShapeData(CreatePoints(), _pathCreator.path, t);
+
+        // position
+        transform.localPosition = _pathCreator.path.GetPointAtTime(t);
+
+        // rotation
+        transform.localRotation = _pathCreator.path.GetRotation(t) * Quaternion.Euler(0, 0, rotation);
+
+        // scale
+        transform.localScale = scale;
     }
 
     private Vector2[] CreatePoints()
@@ -79,38 +95,37 @@ public class CrossSection : MonoBehaviour
     }
 
     // DEBUGGING PURPOSES
-    private Mesh CreateMesh()
-    {
-        var vertices = CreatePoints();
-        // coords2D = vertices;
+    // private Mesh CreateMesh()
+    // {
+    //     var vertices = CreatePoints();
 
-        // Mesh creation
-        var vertices3D = vertices.Select(v => v.To3DPoint(_pathCreator.path, t)).ToArray();
-        var triangulator = new Triangulator(vertices);
-        var triangleIndices = triangulator.Triangulate();
+    //     // Mesh creation
+    //     var vertices3D = vertices.Select(v => v.To3DPoint(_pathCreator.path, t)).ToArray();
+    //     var triangulator = new Triangulator(vertices);
+    //     var triangleIndices = triangulator.Triangulate();
 
-        var mesh = new Mesh
-        {
-            vertices = vertices3D,
-            triangles = triangleIndices,
-        };
+    //     var mesh = new Mesh
+    //     {
+    //         vertices = vertices3D,
+    //         triangles = triangleIndices,
+    //     };
 
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
+    //     mesh.RecalculateNormals();
+    //     mesh.RecalculateBounds();
 
-        return mesh;
-    }
+    //     return mesh;
+    // }
 
-    private void OnDrawGizmos()
-    {
-        var mesh = CreateMesh();
+    // private void OnDrawGizmos()
+    // {
+    //     var mesh = CreateMesh();
 
-        for (var i = 0; i < mesh.vertices.Length; i++)
-        {
-            var v = mesh.vertices[i];
-            // Handles.Label(v, $"{i}");
-        }
+    //     for (var i = 0; i < mesh.vertices.Length; i++)
+    //     {
+    //         var v = mesh.vertices[i];
+    //         // Handles.Label(v, $"{i}");
+    //     }
 
-        Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
-    }
+    //     Gizmos.DrawWireMesh(mesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
+    // }
 }
