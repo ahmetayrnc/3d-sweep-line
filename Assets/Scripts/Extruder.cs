@@ -13,6 +13,8 @@ public class Extruder : MonoBehaviour
     private MeshFilter _meshFilter;
     public CrossSection[] crossSections;
 
+    public bool showWireMesh;
+
 
     private void Awake()
     {
@@ -53,10 +55,15 @@ public class Extruder : MonoBehaviour
             {
                 Vector3 v = array[i];
                 Vector3 v2 = array[(i + 1) % array.Length];
-                Gizmos.DrawSphere(v, 0.05f);
+                Gizmos.DrawSphere(v, 0.01f);
                 Gizmos.DrawLine(v, v2);
                 Handles.Label(v, $"{i}");
             }
+        }
+
+        if (showWireMesh)
+        {
+            Gizmos.DrawWireMesh(_meshFilter.sharedMesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
         }
     }
 
