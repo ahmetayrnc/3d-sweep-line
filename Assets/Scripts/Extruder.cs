@@ -117,9 +117,11 @@ public class Extruder : MonoBehaviour
         var startShapeTriangles = triangulator.Triangulate();
         triangulator = new Triangulator(end.Get2DPoints());
         var endShapeTriangles = triangulator.Triangulate();
+        endShapeTriangles = endShapeTriangles.Reverse().ToArray();
 
         // the result of the triangluation has the indices starting from 0, convert them to the correct ones.
         endShapeTriangles = endShapeTriangles.Select(i => vertices.Length - i - 1).ToArray();
+        // endShapeTriangles = endShapeTriangles.Reverse().ToArray();
 
         // Add the start and end triangles
         triangles = ConcatArrays(triangles, startShapeTriangles, endShapeTriangles);

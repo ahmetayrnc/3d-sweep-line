@@ -1,8 +1,8 @@
 using UnityEngine;
 using PathCreation;
 using System.Linq;
-using Vector3Extension;
 using SVGMeshUnity;
+using UnityEngine.U2D;
 
 [ExecuteInEditMode]
 [RequireComponent(typeof(MeshFilter))]
@@ -21,7 +21,7 @@ public class CrossSection : MonoBehaviour
     public Vector2 scale = Vector2.one;
 
     public Vector2[] pointsPublic;
-
+    public SpriteShapeController spriteShapeController;
     //
     // --- Internal variables ---
     //
@@ -45,8 +45,45 @@ public class CrossSection : MonoBehaviour
         var svg = new SVGData();
         svg.Path(pathString);
 
-        _crossSectionData = SVGToShapeData(svg);
+        // _crossSectionData = SVGToShapeData(svg);
+        // _crossSectionData = TextureToShapeData(sprite);
+        // _crossSectionData = SpriteToShapeData(sprite.sprite);
+        _crossSectionData = SpriteShapeToShapeData(spriteShapeController);
         return _crossSectionData;
+    }
+
+    private ShapeData SpriteShapeToShapeData(SpriteShapeController spriteShapeController)
+    {
+        PolygonCollider2D polygon = spriteShapeController.polygonCollider;
+        var vertices = polygon.points.AsEnumerable();
+
+        // Scale the shape between -1 and 1
+        var min_x = vertices.Select(v => v.x).Min();
+        var min_y = vertices.Select(v => v.y).Min();
+        var max_x = vertices.Select(v => v.x).Max();
+        var max_y = vertices.Select(v => v.y).Max();
+
+        vertices = vertices.Select(v =>
+        {
+            return new Vector2(
+                2.0f * (v.x - min_x) / (max_x - min_x) - 1.0f,
+                2.0f * (v.y - min_y) / (max_y - min_y) - 1.0f);
+        }).ToArray();
+
+        // rotation
+        vertices = vertices.Select(v => (Vector2)(Quaternion.Euler(0, 0, rotation) * v));
+
+        //scale
+        vertices = vertices.Select(v => v * scale);
+
+        // Make sure the shape is in clockwise order
+        if ((vertices.ElementAt(1).x - vertices.ElementAt(0).x) * (vertices.ElementAt(1).y + vertices.ElementAt(0).y) < 0)
+        {
+            vertices = vertices.Reverse().ToArray();
+        }
+
+        pointsPublic = vertices.ToArray();
+        return new ShapeData(pointsPublic, _pathCreator.path, t);
     }
 
     private ShapeData SVGToShapeData(SVGData svg)
@@ -69,8 +106,6 @@ public class CrossSection : MonoBehaviour
                 2.0f * (v.x - min_x) / (max_x - min_x) - 1.0f,
                 2.0f * (v.y - min_y) / (max_y - min_y) - 1.0f);
         }).ToArray();
-
-        // scaling
 
         // rotation
         vertices = vertices.Select(v => (Vector2)(Quaternion.Euler(0, 0, rotation) * v));
