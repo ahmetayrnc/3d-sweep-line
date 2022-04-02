@@ -3,6 +3,8 @@ using PathCreation;
 using System.Linq;
 using static ProjectUtil;
 using UnityEditor;
+using mattatz.Triangulation2DSystem;
+using Vector3Extension;
 
 [ExecuteInEditMode]
 [RequireComponent(typeof(PathCreator))]
@@ -12,6 +14,7 @@ public class Extruder : MonoBehaviour
     private PathCreator _pathCreator;
     private MeshFilter _meshFilter;
     public CrossSection[] crossSections;
+    public PolygonCollider2D polygonCollider;
 
     public bool showWireMesh;
 
@@ -112,19 +115,18 @@ public class Extruder : MonoBehaviour
         var vertices = ConcatArrays(shapes.Select(s => s.Get3DPoints()).ToArray());
         var triangles = ConcatArrays(shapeTriangles);
 
-        // create the triangles for the end sections
-        var triangulator = new Triangulator(start.Get2DPoints());
-        var startShapeTriangles = triangulator.Triangulate();
-        triangulator = new Triangulator(end.Get2DPoints());
-        var endShapeTriangles = triangulator.Triangulate();
-        endShapeTriangles = endShapeTriangles.Reverse().ToArray();
+        // start shape
+        var startMesh = new Triangulation2D(Polygon2D.Contour(start.Get2DPoints())).Build();
+        startMesh.vertices = startMesh.vertices.Select(v => (Vector2)v).ToArray().To3DPoints(_pathCreator.path, 0);
+        startMesh.RecalculateBounds();
+        startMesh.RecalculateNormals();
 
-        // the result of the triangluation has the indices starting from 0, convert them to the correct ones.
-        endShapeTriangles = endShapeTriangles.Select(i => vertices.Length - i - 1).ToArray();
-        // endShapeTriangles = endShapeTriangles.Reverse().ToArray();
-
-        // Add the start and end triangles
-        triangles = ConcatArrays(triangles, startShapeTriangles, endShapeTriangles);
+        // end shape
+        var endMesh = new Triangulation2D(Polygon2D.Contour(end.Get2DPoints())).Build();
+        endMesh.triangles = endMesh.triangles.Reverse().ToArray();
+        endMesh.vertices = endMesh.vertices.Select(v => (Vector2)v).ToArray().To3DPoints(_pathCreator.path, 1);
+        endMesh.RecalculateBounds();
+        endMesh.RecalculateNormals();
 
         // Create the mesh
         var mesh = new Mesh
@@ -136,7 +138,15 @@ public class Extruder : MonoBehaviour
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
 
-        return mesh;
+        var combine = new CombineInstance[3];
+        combine[0].mesh = startMesh;
+        combine[1].mesh = mesh;
+        combine[2].mesh = endMesh;
+
+        var finalMesh = new Mesh();
+        finalMesh.CombineMeshes(combine, true, false, false);
+
+        return finalMesh;
     }
 
     // Given two aligned arrays of the shapes vertices' indices, 
