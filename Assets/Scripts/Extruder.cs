@@ -11,26 +11,28 @@ using Vector3Extension;
 [RequireComponent(typeof(MeshFilter))]
 public class Extruder : MonoBehaviour
 {
+    // public
+    public bool showWireMesh;
+    public bool showVertexLabels;
+    public bool showUserCrossSetions;
+
+    // private 
     private PathCreator _pathCreator;
     private MeshFilter _meshFilter;
-    public CrossSection[] crossSections;
-    public PolygonCollider2D polygonCollider;
-
-    public bool showWireMesh;
-
+    private CrossSection[] _crossSections;
 
     private void Awake()
     {
         _pathCreator = GetComponentInParent<PathCreator>();
         _meshFilter = GetComponent<MeshFilter>();
-        crossSections = GetComponentsInChildren<CrossSection>();
+        _crossSections = GetComponentsInChildren<CrossSection>();
     }
 
     private void Update()
     {
         Debug.Assert(_meshFilter != null, "meshFilter null");
         Debug.Assert(_pathCreator != null, "pathCreaor null");
-        Debug.Assert(crossSections != null, "crossSections null");
+        Debug.Assert(_crossSections != null, "crossSections null");
 
         var (shapes, startShape, endShape) = CreateAllShapes();
         var mesh = CombineShapesIntoMesh(shapes, startShape, endShape);
@@ -39,8 +41,8 @@ public class Extruder : MonoBehaviour
 
     private ShapeData[] GetCrossSections()
     {
-        crossSections = GetComponentsInChildren<CrossSection>();
-        var cs = crossSections.Select(cs => cs.GetCrossSectionData()).OrderBy(cs => cs.GetT()).ToArray();
+        _crossSections = GetComponentsInChildren<CrossSection>();
+        var cs = _crossSections.Select(cs => cs.GetCrossSectionData()).OrderBy(cs => cs.GetT()).ToArray();
         return cs;
     }
 
@@ -51,16 +53,22 @@ public class Extruder : MonoBehaviour
         shapes = ShapeInterpolator.ExpandShapes(shapes);
 
         // var (shapes, startShape, endShape) = CreateAllShapes();
-        foreach (var cs in shapes)
+        if (showUserCrossSetions)
         {
-            Vector3[] array = cs.Get3DPoints();
-            for (int i = 0; i < array.Length; i++)
+            foreach (var cs in shapes)
             {
-                Vector3 v = array[i];
-                Vector3 v2 = array[(i + 1) % array.Length];
-                Gizmos.DrawSphere(v, 0.01f);
-                Gizmos.DrawLine(v, v2);
-                Handles.Label(v, $"{i}");
+                Vector3[] array = cs.Get3DPoints();
+                for (int i = 0; i < array.Length; i++)
+                {
+                    Vector3 v = array[i];
+                    Vector3 v2 = array[(i + 1) % array.Length];
+                    Gizmos.DrawSphere(v, 0.03f);
+                    Gizmos.DrawLine(v, v2);
+                    if (showVertexLabels)
+                    {
+                        Handles.Label(v, $"{i}");
+                    }
+                }
             }
         }
 

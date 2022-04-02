@@ -7,16 +7,6 @@ namespace Vector3Extension
 {
     public static class Vector3ExtensionClass
     {
-        public static Vector2[] To3DPoints(this Vector3[] points3D, Vector3 pathDirection)
-        {
-            return points3D.Select(p => p.To2DPoint(pathDirection)).ToArray();
-        }
-
-        public static Vector2 To2DPoint(this Vector3 point3D, Vector3 pathDirection)
-        {
-            return (Vector2)Vector3.ProjectOnPlane(point3D, pathDirection);
-        }
-
         public static Vector3[] To3DPoints(this Vector2[] points2D, VertexPath path, float t)
         {
             return points2D.Select(p => p.To3DPoint(path, t)).ToArray();
