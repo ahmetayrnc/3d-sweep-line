@@ -1,5 +1,6 @@
 using UnityEngine;
 using PathCreation;
+using UnityEditor;
 
 [ExecuteInEditMode]
 public class CrossSection : MonoBehaviour
@@ -48,6 +49,35 @@ public class CrossSection : MonoBehaviour
             }
             return _pathCreator;
         }
+    }
+
+    // Add a menu item to create custom GameObjects.
+    // Priority 10 ensures it is grouped with the other menu items of the same kind
+    // and propagated to the hierarchy dropdown and hierarchy context menus.
+    [MenuItem("GameObject/Custom/Cross Section", false, 10)]
+    static void CreateExtruder(MenuCommand menuCommand)
+    {
+        var parent = menuCommand.context as GameObject;
+        if (parent == null)
+        {
+            return;
+        }
+
+        if (parent.GetComponent<Extruder>() == null)
+        {
+            return;
+        }
+
+        // Create a custom game object
+        var index = parent.transform.childCount + 1 + "";
+        var go = new GameObject($"Cross Section {index.PadLeft(2, '0')}");
+        go.AddComponent<CrossSection>();
+
+        // Ensure it gets reparented if this was a context click (otherwise does nothing)
+        GameObjectUtility.SetParentAndAlign(go, parent);
+        // Register the creation in the undo system
+        Undo.RegisterCreatedObjectUndo(go, "Create " + go.name);
+        Selection.activeObject = go;
     }
 
     public void Update()

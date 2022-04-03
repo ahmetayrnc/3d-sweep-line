@@ -9,6 +9,7 @@ using Vector3Extension;
 [ExecuteInEditMode]
 [RequireComponent(typeof(PathCreator))]
 [RequireComponent(typeof(MeshFilter))]
+[RequireComponent(typeof(MeshRenderer))]
 public class Extruder : MonoBehaviour
 {
     // public
@@ -19,7 +20,40 @@ public class Extruder : MonoBehaviour
     // private 
     private PathCreator _pathCreator;
     private MeshFilter _meshFilter;
+    private MeshRenderer _meshRenderer;
     private CrossSection[] _crossSections;
+
+    // Add a menu item to create custom GameObjects.
+    // Priority 10 ensures it is grouped with the other menu items of the same kind
+    // and propagated to the hierarchy dropdown and hierarchy context menus.
+    [MenuItem("GameObject/Custom/Extruder", false, 10)]
+    static void CreateExtruder(MenuCommand menuCommand)
+    {
+        // Create a custom game object
+        var go = new GameObject("Extruder");
+        go.AddComponent<Extruder>();
+        var extruderMeshRenderer = go.GetComponent<MeshRenderer>();
+        var extruderPathCreator = go.GetComponent<PathCreator>();
+        extruderPathCreator.bezierPath.ControlPointMode = BezierPath.ControlMode.Automatic;
+
+        // add the first cross section
+        var cs1_go = new GameObject("Cross Section 01");
+        cs1_go.transform.parent = go.transform;
+        var cs1 = cs1_go.AddComponent<CrossSection>();
+        cs1.t = 0;
+
+        // add the second cross section
+        var cs2_go = new GameObject("Cross Section 02");
+        cs2_go.transform.parent = go.transform;
+        var cs2 = cs2_go.AddComponent<CrossSection>();
+        cs2.t = 1;
+
+        // Ensure it gets reparented if this was a context click (otherwise does nothing)
+        GameObjectUtility.SetParentAndAlign(go, menuCommand.context as GameObject);
+        // Register the creation in the undo system
+        Undo.RegisterCreatedObjectUndo(go, "Create " + go.name);
+        Selection.activeObject = go;
+    }
 
     private void GetReferences()
     {
@@ -32,6 +66,11 @@ public class Extruder : MonoBehaviour
         {
             _meshFilter = GetComponent<MeshFilter>();
         }
+
+        if (_meshRenderer == null)
+        {
+            _meshRenderer = GetComponent<MeshRenderer>();
+        }
     }
 
     private void Update()
@@ -43,9 +82,13 @@ public class Extruder : MonoBehaviour
     private void RenderMesh()
     {
         _crossSections = GetComponentsInChildren<CrossSection>();
+        if (_crossSections.Length <= 0)
+        {
+            return;
+        }
 
-        var (shapes, startShape, endShape) = CreateAllShapes();
-        var mesh = CombineShapesIntoMesh(shapes, startShape, endShape);
+        var shapes = CreateAllShapes();
+        var mesh = CombineShapesIntoMesh(shapes, shapes[0], shapes[shapes.Length - 1]);
         _meshFilter.mesh = mesh;
     }
 
@@ -63,9 +106,14 @@ public class Extruder : MonoBehaviour
     private void OnDrawGizmos()
     {
         var shapes = GetCrossSections();
-        shapes = ShapeInterpolator.ExpandShapes(shapes);
-
         // var (shapes, startShape, endShape) = CreateAllShapes();
+
+        if (shapes.Length <= 0)
+        {
+            return;
+        }
+
+        shapes = ShapeInterpolator.ExpandShapes(shapes);
         if (showUserCrossSetions)
         {
             foreach (var cs in shapes)
@@ -91,7 +139,7 @@ public class Extruder : MonoBehaviour
         }
     }
 
-    private (ShapeData[] shapes, ShapeData, ShapeData) CreateAllShapes()
+    private ShapeData[] CreateAllShapes()
     {
         var path = _pathCreator.path;
 
@@ -99,7 +147,7 @@ public class Extruder : MonoBehaviour
         var userShapes = GetCrossSections();
         userShapes = ShapeInterpolator.ExpandShapes(userShapes);
 
-        var shapes = new ShapeData[path.NumPoints];
+        var shapes = new ShapeData[path.NumPoints + userShapes.Length];
         for (int i = 0; i < path.NumPoints; i++)
         {
             // Get the point on the vertex path
@@ -118,7 +166,14 @@ public class Extruder : MonoBehaviour
             shapes[i] = middleShape;
         }
 
-        return (shapes, userShapes[0], userShapes[userShapes.Length - 1]);
+        for (int i = 0; i < userShapes.Length; i++)
+        {
+            shapes[i + path.NumPoints] = userShapes[i];
+        }
+
+        shapes = shapes.OrderBy(s => s.GetT()).ToArray();
+
+        return shapes;
     }
 
     private Mesh CombineShapesIntoMesh(ShapeData[] shapes, ShapeData start, ShapeData end)
