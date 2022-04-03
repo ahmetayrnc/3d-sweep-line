@@ -9,22 +9,18 @@ using System;
 
 [ExecuteInEditMode]
 [RequireComponent(typeof(PathCreator))]
-[RequireComponent(typeof(MeshFilter))]
-[RequireComponent(typeof(MeshRenderer))]
 public class Extruder : MonoBehaviour
 {
     // public
-    public AnimationCurve[] interpolationCurves;
+    public MeshFilter target;
+    public AnimationCurve[] interpolationCurves = new AnimationCurve[0];
     public bool showWireMesh;
     public bool showVertexLabels;
     public bool showUserCrossSetions;
 
     // private 
     private PathCreator _pathCreator;
-    private MeshFilter _meshFilter;
-    private MeshRenderer _meshRenderer;
     private CrossSection[] _crossSections;
-
 
     // Add a menu item to create custom GameObjects.
     // Priority 10 ensures it is grouped with the other menu items of the same kind
@@ -32,12 +28,20 @@ public class Extruder : MonoBehaviour
     [MenuItem("GameObject/Custom/Extruder", false, 10)]
     static void CreateExtruder(MenuCommand menuCommand)
     {
+        // Create the output object
+        var target_go = new GameObject("Output");
+        target_go.AddComponent<MeshFilter>();
+        var targetMeshRenderer = target_go.AddComponent<MeshRenderer>();
+        var defaultMaterial = Resources.Load("DefaultMaterial", typeof(Material)) as Material;
+        targetMeshRenderer.material = defaultMaterial;
+
         // Create a custom game object
         var go = new GameObject("Extruder");
-        go.AddComponent<Extruder>();
+        var extruder = go.AddComponent<Extruder>();
         var extruderMeshRenderer = go.GetComponent<MeshRenderer>();
         var extruderPathCreator = go.GetComponent<PathCreator>();
         extruderPathCreator.bezierPath.ControlPointMode = BezierPath.ControlMode.Automatic;
+        extruder.target = target_go.GetComponent<MeshFilter>();
 
         // add the first cross section
         var cs1_go = new GameObject("Cross Section 01");
@@ -58,21 +62,12 @@ public class Extruder : MonoBehaviour
         Selection.activeObject = go;
     }
 
+    /// Get the references from unity
     private void GetReferences()
     {
         if (_pathCreator == null)
         {
             _pathCreator = GetComponentInParent<PathCreator>();
-        }
-
-        if (_meshFilter == null)
-        {
-            _meshFilter = GetComponent<MeshFilter>();
-        }
-
-        if (_meshRenderer == null)
-        {
-            _meshRenderer = GetComponent<MeshRenderer>();
         }
     }
 
@@ -83,6 +78,8 @@ public class Extruder : MonoBehaviour
         RenderMesh();
     }
 
+    /// Constraints the length of the interpolation curves array.
+    /// The size is #crossSections - 1
     private void ConstraintInterpolationCurvesLength()
     {
         var len = interpolationCurves.Length;
@@ -119,6 +116,7 @@ public class Extruder : MonoBehaviour
         }
     }
 
+    /// Renders the mesh created from the procedure
     private void RenderMesh()
     {
         _crossSections = GetComponentsInChildren<CrossSection>();
@@ -128,10 +126,15 @@ public class Extruder : MonoBehaviour
         }
 
         var shapes = CreateAllShapes();
-        var mesh = CombineShapesIntoMesh(shapes, shapes[0], shapes[shapes.Length - 1]);
-        _meshFilter.mesh = mesh;
+        var mesh = CombineShapesIntoMesh(shapes);
+
+        if (target != null)
+        {
+            target.mesh = mesh;
+        }
     }
 
+    // Gets all user defined crossSection data from the game objects
     private ShapeData[] GetCrossSections()
     {
         _crossSections = GetComponentsInChildren<CrossSection>();
@@ -143,10 +146,12 @@ public class Extruder : MonoBehaviour
     }
 
     // Used to draw the vertices on the cross sections
+    // Draws the vertices on the cross sections
+    // Draws the cross sections
+    // Draws the vertex indices
     private void OnDrawGizmos()
     {
         var shapes = GetCrossSections();
-        // var shapes = CreateAllShapes();
 
         if (shapes.Length <= 0)
         {
@@ -173,12 +178,13 @@ public class Extruder : MonoBehaviour
             }
         }
 
-        if (showWireMesh)
+        if (showWireMesh && target != null)
         {
-            Gizmos.DrawWireMesh(_meshFilter.sharedMesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
+            Gizmos.DrawWireMesh(target.sharedMesh, -1, Vector3.zero, Quaternion.identity, Vector3.one);
         }
     }
 
+    // Creates all intermediate shapes resulting from the sampling of the curve and cross section interpolations
     private ShapeData[] CreateAllShapes()
     {
         var path = _pathCreator.path;
@@ -218,7 +224,8 @@ public class Extruder : MonoBehaviour
         return shapes;
     }
 
-    private Mesh CombineShapesIntoMesh(ShapeData[] shapes, ShapeData start, ShapeData end)
+    // Combines all shapes into a single mesh
+    private Mesh CombineShapesIntoMesh(ShapeData[] shapes)
     {
         // Create the triangles for the middle sections
         var shapeTriangles = new int[shapes.Length - 1][];
@@ -234,12 +241,14 @@ public class Extruder : MonoBehaviour
         var triangles = ConcatArrays(shapeTriangles);
 
         // start shape
+        var start = shapes[0];
         var startMesh = new Triangulation2D(Polygon2D.Contour(start.Get2DPoints())).Build();
         startMesh.vertices = startMesh.vertices.Select(v => (Vector2)v).ToArray().To3DPoints(_pathCreator.path, 0);
         startMesh.RecalculateBounds();
         startMesh.RecalculateNormals();
 
         // end shape
+        var end = shapes[shapes.Length - 1];
         var endMesh = new Triangulation2D(Polygon2D.Contour(end.Get2DPoints())).Build();
         endMesh.triangles = endMesh.triangles.Reverse().ToArray();
         endMesh.vertices = endMesh.vertices.Select(v => (Vector2)v).ToArray().To3DPoints(_pathCreator.path, 1);
@@ -253,9 +262,6 @@ public class Extruder : MonoBehaviour
             triangles = triangles,
         };
 
-        sideMesh.RecalculateNormals();
-        sideMesh.RecalculateBounds();
-
         // combine the meshes
         var combine = new CombineInstance[3];
         combine[0].mesh = startMesh;
@@ -265,11 +271,13 @@ public class Extruder : MonoBehaviour
         var finalMesh = new Mesh();
         finalMesh.CombineMeshes(combine, true, false, false);
 
+        // finalMesh.vertices
+
         return finalMesh;
     }
 
     // Given two aligned arrays of the shapes vertices' indices, 
-    // creates the triangle indices for one segment of the mesh
+    // creates the triangle indices for one side segment of the mesh
     private static int[] MakeTrianglesForShape(int[] shape1, int[] shape2)
     {
         var shapeLength = shape1.Length;
@@ -287,6 +295,7 @@ public class Extruder : MonoBehaviour
         return triangles;
     }
 
+    // Given two edges, creates the triangles for the rectangle
     private static int[] MakeTrianglesForFace(int[] edge1, int[] edge2)
     {
         var triangles = new int[6];
