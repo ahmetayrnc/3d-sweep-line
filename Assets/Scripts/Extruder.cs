@@ -5,6 +5,7 @@ using static ProjectUtil;
 using UnityEditor;
 using mattatz.Triangulation2DSystem;
 using Vector3Extension;
+using System;
 
 [ExecuteInEditMode]
 [RequireComponent(typeof(PathCreator))]
@@ -13,6 +14,7 @@ using Vector3Extension;
 public class Extruder : MonoBehaviour
 {
     // public
+    public AnimationCurve[] interpolationCurves;
     public bool showWireMesh;
     public bool showVertexLabels;
     public bool showUserCrossSetions;
@@ -22,6 +24,7 @@ public class Extruder : MonoBehaviour
     private MeshFilter _meshFilter;
     private MeshRenderer _meshRenderer;
     private CrossSection[] _crossSections;
+
 
     // Add a menu item to create custom GameObjects.
     // Priority 10 ensures it is grouped with the other menu items of the same kind
@@ -76,7 +79,44 @@ public class Extruder : MonoBehaviour
     private void Update()
     {
         GetReferences();
+        ConstraintInterpolationCurvesLength();
         RenderMesh();
+    }
+
+    private void ConstraintInterpolationCurvesLength()
+    {
+        var len = interpolationCurves.Length;
+        var wantedLength = GetComponentsInChildren<CrossSection>().Length - 1;
+
+        if (len == wantedLength)
+        {
+            return;
+        }
+
+        if (len > wantedLength)
+        {
+            var newCurves = new AnimationCurve[wantedLength];
+            for (int i = 0; i < wantedLength; i++)
+            {
+                newCurves[i] = interpolationCurves[i];
+            }
+            interpolationCurves = newCurves;
+        }
+
+        if (len < wantedLength)
+        {
+            var newCurves = new AnimationCurve[wantedLength];
+            for (int i = 0; i < len; i++)
+            {
+                newCurves[i] = interpolationCurves[i];
+            }
+
+            for (int i = len; i < wantedLength; i++)
+            {
+                newCurves[i] = new AnimationCurve(new Keyframe[] { new Keyframe(0, 0), new Keyframe(1, 1) });
+            }
+            interpolationCurves = newCurves;
+        }
     }
 
     private void RenderMesh()
@@ -106,7 +146,7 @@ public class Extruder : MonoBehaviour
     private void OnDrawGizmos()
     {
         var shapes = GetCrossSections();
-        // var (shapes, startShape, endShape) = CreateAllShapes();
+        // var shapes = CreateAllShapes();
 
         if (shapes.Length <= 0)
         {
@@ -158,9 +198,11 @@ public class Extruder : MonoBehaviour
 
             // Find the cross sections that the point lies between using t
             var (startShape, endShape, t2) = GetCrossSections(userShapes, t);
+            var startShapeIndex = Array.IndexOf(userShapes, startShape);
+            var interpolationCurve = interpolationCurves[startShapeIndex];
 
-            // Find the shape of the point using the cross sections using t2
-            var middleShape = ShapeInterpolator.MorphShape(startShape, endShape, t2, t);
+            // Find the shape at the point i, using the cross sections using t2
+            var middleShape = ShapeInterpolator.MorphShape(startShape, endShape, t2, t, interpolationCurve);
 
             // store the created shape
             shapes[i] = middleShape;
@@ -205,18 +247,19 @@ public class Extruder : MonoBehaviour
         endMesh.RecalculateNormals();
 
         // Create the mesh
-        var mesh = new Mesh
+        var sideMesh = new Mesh
         {
             vertices = vertices,
             triangles = triangles,
         };
 
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
+        sideMesh.RecalculateNormals();
+        sideMesh.RecalculateBounds();
 
+        // combine the meshes
         var combine = new CombineInstance[3];
         combine[0].mesh = startMesh;
-        combine[1].mesh = mesh;
+        combine[1].mesh = sideMesh;
         combine[2].mesh = endMesh;
 
         var finalMesh = new Mesh();
@@ -267,7 +310,7 @@ public class Extruder : MonoBehaviour
         // No cross sections defined, we can't extrude a path.
         if (crossSections.Length == 0)
         {
-            throw new System.Exception(); // todo
+            throw new System.Exception();
         }
 
         // Only 1 cross section is defined, use the same cross sections for interpolation.
@@ -297,6 +340,6 @@ public class Extruder : MonoBehaviour
         }
 
         // after the last cross section
-        return (crossSections[crossSections.Length - 1], crossSections[crossSections.Length - 1], 0); // todo
+        return (crossSections[crossSections.Length - 1], crossSections[crossSections.Length - 1], 0);
     }
 }

@@ -160,11 +160,12 @@ public static class ShapeInterpolator
     // Returns the vertices of the shape between polygon1 and polygon2 at time t
     // This function is super simple because we assume that the firstShape and the secondShape have the same number
     // of vertices. Additionally, we also assume that these shapes are aligned and we can just connect the vertices of them in order
-    public static ShapeData MorphShape(ShapeData firstShape, ShapeData secondShape, float t, float tPath)
+    public static ShapeData MorphShape(ShapeData firstShape, ShapeData secondShape, float t, float tPath, AnimationCurve interpolationCurve)
     {
         int numVertices = firstShape.GetNumPoints();
         var vertices = new Vector2[numVertices];
 
+        t = interpolationCurve.Evaluate(t);
         for (int i = 0; i < numVertices; i++)
         {
             var x = Mathf.Lerp(firstShape.Get2DPoints()[i].x, secondShape.Get2DPoints()[i].x, t);
