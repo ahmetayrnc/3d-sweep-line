@@ -272,6 +272,9 @@ public class Extruder : MonoBehaviour
         finalMesh.CombineMeshes(combine, true, false, false);
 
         // finalMesh.vertices
+        finalMesh.RecalculateBounds();
+        finalMesh.RecalculateNormals();
+        finalMesh.RecalculateTangents();
 
         return finalMesh;
     }
