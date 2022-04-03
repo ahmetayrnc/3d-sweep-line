@@ -42,32 +42,11 @@ public class Extruder : MonoBehaviour
 
     private void RenderMesh()
     {
-        // check if all _cross sections are clean, if there is 1 dirty re render everything
         _crossSections = GetComponentsInChildren<CrossSection>();
-        // var dirty = false;
-        // foreach (var cs in _crossSections)
-        // {
-        //     if (cs.IsDirty())
-        //     {
-        //         dirty = true;
-        //         break;
-        //     }
-        // }
-
-        // if (!dirty)
-        // {
-        //     return;
-        // }
 
         var (shapes, startShape, endShape) = CreateAllShapes();
         var mesh = CombineShapesIntoMesh(shapes, startShape, endShape);
         _meshFilter.mesh = mesh;
-
-        // loop through all cross sections and mark them as not dirty
-        // foreach (var cs in _crossSections)
-        // {
-        //     cs.MarkNotDirty();
-        // }
     }
 
     private ShapeData[] GetCrossSections()
@@ -242,6 +221,12 @@ public class Extruder : MonoBehaviour
             return (crossSections[0], crossSections[0], 0);
         }
 
+        // before the first cross section
+        if (t < crossSections[0].GetT())
+        {
+            return (crossSections[0], crossSections[0], 0);
+        }
+
         // Find the cross sections 
         for (int i = 1; i < crossSections.Length; i++)
         {
@@ -256,7 +241,7 @@ public class Extruder : MonoBehaviour
             return (prevCrossSection, crossSection, t2);
         }
 
-        // The t value is outside the defined cross sections.
-        return (crossSections[0], crossSections[0], 0); // todo
+        // after the last cross section
+        return (crossSections[crossSections.Length - 1], crossSections[crossSections.Length - 1], 0); // todo
     }
 }
