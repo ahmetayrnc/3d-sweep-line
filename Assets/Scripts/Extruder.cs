@@ -275,6 +275,7 @@ public class Extruder : MonoBehaviour
         finalMesh.RecalculateBounds();
         finalMesh.RecalculateNormals();
         finalMesh.RecalculateTangents();
+        finalMesh.RecalculateUVDistributionMetrics();
 
         return finalMesh;
     }
