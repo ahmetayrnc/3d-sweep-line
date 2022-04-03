@@ -21,28 +21,62 @@ public class Extruder : MonoBehaviour
     private MeshFilter _meshFilter;
     private CrossSection[] _crossSections;
 
-    private void Awake()
+    private void GetReferences()
     {
-        _pathCreator = GetComponentInParent<PathCreator>();
-        _meshFilter = GetComponent<MeshFilter>();
-        _crossSections = GetComponentsInChildren<CrossSection>();
+        if (_pathCreator == null)
+        {
+            _pathCreator = GetComponentInParent<PathCreator>();
+        }
+
+        if (_meshFilter == null)
+        {
+            _meshFilter = GetComponent<MeshFilter>();
+        }
     }
 
     private void Update()
     {
-        Debug.Assert(_meshFilter != null, "meshFilter null");
-        Debug.Assert(_pathCreator != null, "pathCreaor null");
-        Debug.Assert(_crossSections != null, "crossSections null");
+        GetReferences();
+        RenderMesh();
+    }
+
+    private void RenderMesh()
+    {
+        // check if all _cross sections are clean, if there is 1 dirty re render everything
+        _crossSections = GetComponentsInChildren<CrossSection>();
+        // var dirty = false;
+        // foreach (var cs in _crossSections)
+        // {
+        //     if (cs.IsDirty())
+        //     {
+        //         dirty = true;
+        //         break;
+        //     }
+        // }
+
+        // if (!dirty)
+        // {
+        //     return;
+        // }
 
         var (shapes, startShape, endShape) = CreateAllShapes();
         var mesh = CombineShapesIntoMesh(shapes, startShape, endShape);
         _meshFilter.mesh = mesh;
+
+        // loop through all cross sections and mark them as not dirty
+        // foreach (var cs in _crossSections)
+        // {
+        //     cs.MarkNotDirty();
+        // }
     }
 
     private ShapeData[] GetCrossSections()
     {
         _crossSections = GetComponentsInChildren<CrossSection>();
-        var cs = _crossSections.Select(cs => cs.GetCrossSectionData()).OrderBy(cs => cs.GetT()).ToArray();
+        var cs = _crossSections
+                    .Select(cs => cs.CrossSectionData)
+                    .OrderBy(cs => cs.GetT())
+                    .ToArray();
         return cs;
     }
 
@@ -176,7 +210,6 @@ public class Extruder : MonoBehaviour
         return triangles;
     }
 
-    // TODO: instead of int[] use a struct EDGE
     private static int[] MakeTrianglesForFace(int[] edge1, int[] edge2)
     {
         var triangles = new int[6];
