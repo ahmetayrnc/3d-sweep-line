@@ -14,6 +14,9 @@ public class Extruder : MonoBehaviour
     // public
     public MeshFilter target;
     public AnimationCurve[] interpolationCurves = new AnimationCurve[0];
+    public Color32 minColor = new Color32(60, 0, 0, 255);
+    public Color32 maxColor = new Color32(0, 0, 60, 255);
+    public bool globalScaleForColor = false;
     public bool showWireMesh;
     public bool showVertexLabels;
     public bool showUserCrossSetions;
@@ -32,7 +35,7 @@ public class Extruder : MonoBehaviour
         var target_go = new GameObject("Output");
         target_go.AddComponent<MeshFilter>();
         var targetMeshRenderer = target_go.AddComponent<MeshRenderer>();
-        var defaultMaterial = Resources.Load("DefaultMaterial", typeof(Material)) as Material;
+        var defaultMaterial = Resources.Load("DemoDepthMaterial", typeof(Material)) as Material;
         targetMeshRenderer.material = defaultMaterial;
 
         // Create a custom game object
@@ -271,26 +274,8 @@ public class Extruder : MonoBehaviour
             triangles = triangles,
         };
 
-        // color the meshes
-        var color1 = new Color32(60, 0, 0, 1);
-        var color2 = new Color32(0, 0, 60, 1);
-
-        // colors of the side mesh
-        var sideMeshColorMagnitudes = shapes
-                                .SelectMany(s => s.Get2DPoints())
-                                .Select(v => v.magnitude);
-        var sideMeshMaxMagnitude = sideMeshColorMagnitudes.Max();
-        var sideMeshMinMagnitude = sideMeshColorMagnitudes.Min();
-        var sideMeshColors = sideMeshColorMagnitudes
-                            .Select(t => (t - sideMeshMinMagnitude) / (sideMeshMaxMagnitude - sideMeshMinMagnitude))
-                            .Select(t => Color32.Lerp(color1, color2, t))
-                            .ToArray();
-        sideMesh.colors32 = sideMeshColors;
-
-        // colors of the start mesh
-
-        startMesh.colors32 = AssignColors(startMesh.vertices, color1, color2, sideMeshMinMagnitude, sideMeshMaxMagnitude);
-        endMesh.colors32 = AssignColors(endMesh.vertices, color1, color2, sideMeshMinMagnitude, sideMeshMaxMagnitude);
+        // Color the meshes
+        (sideMesh.colors32, startMesh.colors32, endMesh.colors32) = ColorMeshes(shapes, startMesh.vertices, endMesh.vertices);
 
         // combine the meshes
         var combine = new CombineInstance[3];
@@ -310,18 +295,52 @@ public class Extruder : MonoBehaviour
         return finalMesh;
     }
 
-    private static Color32[] AssignColors(Vector3[] points, Color32 color1, Color32 color2, float globalMin, float gloablMax)
+    private (Color32[] side, Color32[] start, Color32[] end) ColorMeshes(ShapeData[] shapes, Vector3[] startVertices, Vector3[] endVertices)
+    {
+        // colors of the side mesh
+        var (sideMeshColors, sideMeshMin, sideMeshMax) = AssignColorsToSide(shapes, minColor, maxColor, globalScaleForColor);
+
+        // colors of the start and end mesh
+        var startMeshColors = AssignColorsToEnds(startVertices, minColor, maxColor, sideMeshMin, sideMeshMax, globalScaleForColor);
+        var endMeshColors = AssignColorsToEnds(endVertices, minColor, maxColor, sideMeshMin, sideMeshMax, globalScaleForColor);
+
+        return (sideMeshColors, startMeshColors, endMeshColors);
+    }
+
+    private static (Color32[], float, float) AssignColorsToSide(ShapeData[] shapes, Color32 color1, Color32 color2, bool global)
+    {
+        var magnitudes = shapes
+                        .SelectMany(s => s.Get2DPoints())
+                        .Select(v => v.magnitude);
+        var max = magnitudes.Max();
+        var min = magnitudes.Min();
+
+        if (global)
+        {
+            magnitudes = magnitudes
+                            .Select(t => (t - min) / (max - min));
+        }
+
+        var colors = magnitudes
+                            .Select(t => Color32.Lerp(color1, color2, t))
+                            .ToArray();
+        return (colors, min, max);
+    }
+
+    private static Color32[] AssignColorsToEnds(Vector3[] points, Color32 color1, Color32 color2, float globalMin, float globalMax, bool global)
     {
         var center = BoundingBoxCenter(points);
         var magnitudes = points
                     .Select(p => p - center)
-                    .Select(p => p.magnitude)
-                    .ToArray();
-        var min = magnitudes.Min();
-        var max = magnitudes.Max();
+                    .Select(p => p.magnitude);
+
+        if (global)
+        {
+            magnitudes = magnitudes
+                    .Select(m => (m) / (globalMax));
+        }
+
         var colors = magnitudes
-                    .Select(m => (m - min) / (max - min))
-                    .Select(m => (m) / (gloablMax))
                     .Select(t => Color32.Lerp(color1, color2, t))
                     .ToArray();
         return colors;
