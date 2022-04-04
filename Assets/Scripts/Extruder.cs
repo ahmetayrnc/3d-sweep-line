@@ -205,7 +205,16 @@ public class Extruder : MonoBehaviour
             // Find the cross sections that the point lies between using t
             var (startShape, endShape, t2) = GetCrossSections(userShapes, t);
             var startShapeIndex = Array.IndexOf(userShapes, startShape);
-            var interpolationCurve = interpolationCurves[startShapeIndex];
+
+            // Array.IndexOf can return -1 in case it doesn't find the element. In which case fallback to the first interpolation curve
+            // This doesn't matter because if the IndexOf cannot find the index, that means its before the first shape.
+            // Another thing that could happen is if the start shape is the end shape, that means the its after the last shape.
+            // In both cases the t value will be 0, so no interpolation will happen.
+            var interpolationCurve = interpolationCurves[0];
+            if (startShapeIndex >= 0 && startShapeIndex < interpolationCurves.Length)
+            {
+                interpolationCurve = interpolationCurves[startShapeIndex];
+            }
 
             // Find the shape at the point i, using the cross sections using t2
             var middleShape = ShapeInterpolator.MorphShape(startShape, endShape, t2, t, interpolationCurve);
@@ -262,6 +271,27 @@ public class Extruder : MonoBehaviour
             triangles = triangles,
         };
 
+        // color the meshes
+        var color1 = new Color32(60, 0, 0, 1);
+        var color2 = new Color32(0, 0, 60, 1);
+
+        // colors of the side mesh
+        var sideMeshColorMagnitudes = shapes
+                                .SelectMany(s => s.Get2DPoints())
+                                .Select(v => v.magnitude);
+        var sideMeshMaxMagnitude = sideMeshColorMagnitudes.Max();
+        var sideMeshMinMagnitude = sideMeshColorMagnitudes.Min();
+        var sideMeshColors = sideMeshColorMagnitudes
+                            .Select(t => (t - sideMeshMinMagnitude) / (sideMeshMaxMagnitude - sideMeshMinMagnitude))
+                            .Select(t => Color32.Lerp(color1, color2, t))
+                            .ToArray();
+        sideMesh.colors32 = sideMeshColors;
+
+        // colors of the start mesh
+
+        startMesh.colors32 = AssignColors(startMesh.vertices, color1, color2, sideMeshMinMagnitude, sideMeshMaxMagnitude);
+        endMesh.colors32 = AssignColors(endMesh.vertices, color1, color2, sideMeshMinMagnitude, sideMeshMaxMagnitude);
+
         // combine the meshes
         var combine = new CombineInstance[3];
         combine[0].mesh = startMesh;
@@ -278,6 +308,43 @@ public class Extruder : MonoBehaviour
         finalMesh.RecalculateUVDistributionMetrics();
 
         return finalMesh;
+    }
+
+    private static Color32[] AssignColors(Vector3[] points, Color32 color1, Color32 color2, float globalMin, float gloablMax)
+    {
+        var center = BoundingBoxCenter(points);
+        var magnitudes = points
+                    .Select(p => p - center)
+                    .Select(p => p.magnitude)
+                    .ToArray();
+        var min = magnitudes.Min();
+        var max = magnitudes.Max();
+        var colors = magnitudes
+                    .Select(m => (m - min) / (max - min))
+                    .Select(m => (m) / (gloablMax))
+                    .Select(t => Color32.Lerp(color1, color2, t))
+                    .ToArray();
+        return colors;
+    }
+
+    private static Vector3 BoundingBoxCenter(Vector3[] points)
+    {
+        //x
+        var xs = points.Select(p => p.x);
+        var minX = xs.Min();
+        var maxX = xs.Max();
+
+        //y
+        var ys = points.Select(p => p.y);
+        var minY = ys.Min();
+        var maxY = ys.Max();
+
+        //z
+        var zs = points.Select(p => p.z);
+        var minZ = zs.Min();
+        var maxZ = zs.Max();
+
+        return new Vector3((minX + maxX) / 2f, (minY + maxY) / 2f, (minZ + maxZ) / 2f);
     }
 
     // Given two aligned arrays of the shapes vertices' indices, 
