@@ -20,6 +20,7 @@ public class Extruder : MonoBehaviour
     public bool showWireMesh;
     public bool showVertexLabels;
     public bool showUserCrossSetions;
+    public ShapeData[] vertexShapes;
 
     // private 
     private PathCreator _pathCreator;
@@ -130,6 +131,7 @@ public class Extruder : MonoBehaviour
 
         var shapes = CreateAllShapes();
         var mesh = CombineShapesIntoMesh(shapes);
+        vertexShapes = shapes;
 
         if (target != null)
         {
@@ -138,7 +140,7 @@ public class Extruder : MonoBehaviour
     }
 
     // Gets all user defined crossSection data from the game objects
-    private ShapeData[] GetCrossSections()
+    public ShapeData[] GetCrossSections()
     {
         _crossSections = GetComponentsInChildren<CrossSection>();
         var cs = _crossSections

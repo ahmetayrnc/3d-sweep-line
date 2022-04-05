@@ -628,7 +628,7 @@ namespace PathCreation
         }
 
         /// Determines good positions (for a smooth path) for all control points
-        void AutoSetAllControlPoints()
+        public void AutoSetAllControlPoints()
         {
             if (NumAnchorPoints > 2)
             {
