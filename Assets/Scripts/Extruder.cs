@@ -163,7 +163,14 @@ public class Extruder : MonoBehaviour
             return;
         }
 
-        shapes = ShapeInterpolator.ExpandShapes(shapes);
+        var path = _pathCreator.path;
+
+        // viewPoint
+        var firstPoint = path.GetPointAtTime(0);
+        var direction = path.GetDirection(0);
+        var viewPoint = firstPoint - direction;
+
+        shapes = ShapeInterpolator.ExpandShapes(shapes, viewPoint);
         if (showUserCrossSetions)
         {
             foreach (var cs in shapes)
@@ -194,9 +201,14 @@ public class Extruder : MonoBehaviour
     {
         var path = _pathCreator.path;
 
+        // viewPoint
+        var firstPoint = path.GetPointAtTime(0);
+        var direction = path.GetDirection(0);
+        var viewPoint = firstPoint - direction;
+
         // Get all the cross sections and expand them
         var userShapes = GetCrossSections();
-        userShapes = ShapeInterpolator.ExpandShapes(userShapes);
+        userShapes = ShapeInterpolator.ExpandShapes(userShapes, firstPoint);
 
         var shapes = new ShapeData[path.NumPoints + userShapes.Length];
         for (int i = 0; i < path.NumPoints; i++)

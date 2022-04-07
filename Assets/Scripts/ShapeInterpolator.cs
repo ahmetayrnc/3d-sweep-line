@@ -1,14 +1,18 @@
 using UnityEngine;
 using System.Collections.Generic;
 using static ProjectUtil;
+using System.Linq;
 
 public static class ShapeInterpolator
 {
     // This function will get all the cross sections and will expand all cross sections
     // such that all the cross sections will be aligned and have the same number of vertices
     // This makes interpolation super easy
-    public static ShapeData[] ExpandShapes(ShapeData[] shapes)
+    public static ShapeData[] ExpandShapes(ShapeData[] shapes, Vector3 viewPoint)
     {
+        // make sure everything is clockwise
+        shapes = shapes.Select(s => ClockwiseShape(s, viewPoint)).ToArray();
+
         var toBeProcessed = new Stack<int>();
         var processed = new bool[shapes.Length];
 
@@ -145,7 +149,7 @@ public static class ShapeInterpolator
     private static Vector2[] AlignShape(Vector2[] referenceShape, Vector2[] originalShape)
     {
         // find the closest point to the first vertex of shape 1 in shape2, that gives the offset
-        var offset = GetClosestPointIndex(originalShape, referenceShape[0]);
+        var offset = GetClosestPointIndex(originalShape, referenceShape);
         var alignedShape = new Vector2[originalShape.Length];
 
         // shift the vertices using the offset
@@ -155,6 +159,55 @@ public static class ShapeInterpolator
         }
 
         return alignedShape;
+    }
+
+    private static ShapeData ClockwiseShape(ShapeData shape, Vector3 v)
+    {
+        var points2D = shape.Get2DPoints();
+        var points3D = shape.Get3DPoints();
+
+        var nonCollinearPoints = FindNonCollinearPoints(points3D);
+        var a = nonCollinearPoints[0];
+        var b = nonCollinearPoints[1];
+        var c = nonCollinearPoints[2];
+
+        var ab = (b - a).normalized;
+        var ac = (c - a).normalized;
+        var av = (a - v).normalized;
+        var n = Vector3.Cross(ab, ac).normalized;
+        var w = Vector3.Dot(n, av);
+        var notClockwise = w > 0;
+
+        // Make sure the shape is in clockwise order
+        if (notClockwise)
+        {
+            points2D = points2D.Reverse().ToArray();
+            shape.UpdateShape(points2D);
+        }
+
+        return shape;
+    }
+
+    private static Vector3[] FindNonCollinearPoints(Vector3[] points)
+    {
+        for (int i = 0; i < points.Length; i++)
+        {
+            var index_1 = i % points.Length;
+            var index_2 = (i + 1) % points.Length;
+            var index_3 = (i + 2) % points.Length;
+
+            var a = points[index_1];
+            var b = points[index_2];
+            var c = points[index_3];
+
+            var n = Vector3.Cross(b - a, c - a);
+            if (n != Vector3.zero)
+            {
+                return new Vector3[] { a, b, c };
+            }
+        }
+
+        return new Vector3[0];
     }
 
     // Returns the vertices of the shape between polygon1 and polygon2 at time t

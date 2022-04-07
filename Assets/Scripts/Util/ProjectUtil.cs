@@ -19,18 +19,26 @@ public static class ProjectUtil
         return outputArray;
     }
 
-    public static int GetClosestPointIndex(Vector2[] points, Vector2 reference)
+    public static int GetClosestPointIndex(Vector2[] shape1, Vector2[] shape2)
     {
-        if (points.Length == 0)
+        if (shape1.Length == 0)
         {
-            return -1; //TODO
+            throw new System.Exception(); // TODO
         }
 
+        // Find the directions of the vertices for each shape
+        var shape2Center = shape2.Aggregate(new Vector2(0, 0), (s, v) => s + v) / (float)shape2.Length;
+        var shape2Directions = shape2.Select(p => (p - shape2Center).normalized).ToArray();
+
+        var shape1Center = shape1.Aggregate(new Vector2(0, 0), (s, v) => s + v) / (float)shape1.Length;
+        var shape1Directions = shape1.Select(p => (p - shape1Center).normalized).ToArray();
+
         int minIndex = 0;
-        var distances = points.Select(p => (p - reference).sqrMagnitude).ToArray();
-        for (int i = 0; i < distances.Length; i++)
+        // find the most similar direction vectors
+        var similarities = shape1.Select(d => Vector2.Angle(d, shape2Directions[0])).ToArray();
+        for (int i = 0; i < similarities.Length; i++)
         {
-            if (distances[i] < distances[minIndex])
+            if (similarities[i] < similarities[minIndex])
             {
                 minIndex = i;
             }
@@ -100,10 +108,10 @@ public static class ProjectUtil
         vertices = vertices.Select(v => v * scale);
 
         // Make sure the shape is in clockwise order
-        if ((vertices.ElementAt(1).x - vertices.ElementAt(0).x) * (vertices.ElementAt(1).y + vertices.ElementAt(0).y) < 0)
-        {
-            vertices = vertices.Reverse().ToArray();
-        }
+        // if ((vertices.ElementAt(1).x - vertices.ElementAt(0).x) * (vertices.ElementAt(1).y + vertices.ElementAt(0).y) < 0)
+        // {
+        //     vertices = vertices.Reverse().ToArray();
+        // }
 
         return new ShapeData(vertices.ToArray(), pathCreator.path, t);
     }
