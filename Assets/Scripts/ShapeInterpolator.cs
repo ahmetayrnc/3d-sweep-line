@@ -11,7 +11,7 @@ public static class ShapeInterpolator
     public static ShapeData[] ExpandShapes(ShapeData[] shapes, Vector3 viewPoint)
     {
         // make sure everything is clockwise
-        shapes = shapes.Select(s => ClockwiseShape(s, viewPoint)).ToArray();
+        shapes = shapes.Select(s => ClockwiseShape(s)).ToArray();
 
         var toBeProcessed = new Stack<int>();
         var processed = new bool[shapes.Length];
@@ -161,8 +161,9 @@ public static class ShapeInterpolator
         return alignedShape;
     }
 
-    private static ShapeData ClockwiseShape(ShapeData shape, Vector3 v)
+    private static ShapeData ClockwiseShape(ShapeData shape)
     {
+
         var points2D = shape.Get2DPoints();
         var points3D = shape.Get3DPoints();
 
@@ -170,6 +171,7 @@ public static class ShapeInterpolator
         var a = nonCollinearPoints[0];
         var b = nonCollinearPoints[1];
         var c = nonCollinearPoints[2];
+        var v = FindViewPoint(shape);
 
         var ab = (b - a).normalized;
         var ac = (c - a).normalized;
@@ -208,6 +210,16 @@ public static class ShapeInterpolator
         }
 
         return new Vector3[0];
+    }
+
+    private static Vector3 FindViewPoint(ShapeData shape)
+    {
+        var path = shape.GetPath();
+        var t = shape.GetT();
+        var point = path.GetPointAtTime(t);
+        var direction = path.GetDirection(t);
+        var v = point - direction;
+        return v;
     }
 
     // Returns the vertices of the shape between polygon1 and polygon2 at time t
