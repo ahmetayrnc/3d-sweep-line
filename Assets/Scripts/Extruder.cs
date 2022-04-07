@@ -12,15 +12,25 @@ using System;
 public class Extruder : MonoBehaviour
 {
     // public
+    public ShapeData[] vertexShapes;
+
+    // configuration
+    [Header("Mesh Rendering")]
     public MeshFilter target;
-    public AnimationCurve[] interpolationCurves = new AnimationCurve[0];
+    public bool showMeshRenderer = true;
+    public bool showWireMesh = false;
+
+    [Header("Cross Section Rendering")]
+    public bool showUserCrossSections = true;
+    public bool showVertexLabels = false;
+
+    [Header("Colors")]
     public Color32 minColor = new Color32(60, 0, 0, 255);
     public Color32 maxColor = new Color32(0, 0, 60, 255);
     public bool globalScaleForColor = false;
-    public bool showWireMesh;
-    public bool showVertexLabels;
-    public bool showUserCrossSetions;
-    public ShapeData[] vertexShapes;
+
+    [Header("Interpolation")]
+    public AnimationCurve[] interpolationCurves = new AnimationCurve[0];
 
     // private 
     private PathCreator _pathCreator;
@@ -137,6 +147,8 @@ public class Extruder : MonoBehaviour
         {
             target.mesh = mesh;
         }
+
+        target.gameObject.SetActive(showMeshRenderer);
     }
 
     // Gets all user defined crossSection data from the game objects
@@ -171,7 +183,7 @@ public class Extruder : MonoBehaviour
         var viewPoint = firstPoint - direction;
 
         shapes = ShapeInterpolator.ExpandShapes(shapes, viewPoint);
-        if (showUserCrossSetions)
+        if (showUserCrossSections)
         {
             foreach (var cs in shapes)
             {
