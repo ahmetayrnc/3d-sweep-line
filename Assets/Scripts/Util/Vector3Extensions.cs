@@ -18,7 +18,8 @@ namespace Vector3Extension
 
             var position = path.GetPointAtTime(t);
             var direction = path.GetDirection(t);
-            var rotation = Quaternion.FromToRotation(Vector3.forward, direction);
+            var normal = path.GetNormal(t);
+            var rotation = Quaternion.LookRotation(direction, normal);
 
             point = rotation * point;
             point = position + point;
