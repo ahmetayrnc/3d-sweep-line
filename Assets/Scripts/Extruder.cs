@@ -317,7 +317,8 @@ public class Extruder : MonoBehaviour
         var finalMesh = new Mesh();
         finalMesh.CombineMeshes(combine, true, false, false);
 
-        // finalMesh.vertices
+        Unwrapping.GenerateSecondaryUVSet(finalMesh);
+        finalMesh.uv = finalMesh.uv2;
         finalMesh.RecalculateBounds();
         finalMesh.RecalculateNormals();
         finalMesh.RecalculateTangents();
