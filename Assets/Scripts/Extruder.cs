@@ -85,6 +85,11 @@ public class Extruder : MonoBehaviour
         }
     }
 
+    private void Awake()
+    {
+        GetReferences();
+    }
+
     private void Update()
     {
         GetReferences();

@@ -106,10 +106,10 @@ public class CrossSection : MonoBehaviour
     private void UpdateUnityTransform()
     {
         // position
-        transform.localPosition = PathCreator.path.GetPointAtTime(t);
+        transform.position = PathCreator.path.GetPointAtTime(t);
 
         // rotation
-        transform.localRotation = PathCreator.path.GetRotation(t) * Quaternion.Euler(0, 0, rotation);
+        transform.rotation = PathCreator.path.GetRotation(t) * Quaternion.Euler(0, 0, rotation);
 
         // scale
         transform.localScale = scale;

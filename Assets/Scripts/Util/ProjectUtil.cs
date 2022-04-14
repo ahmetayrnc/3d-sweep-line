@@ -94,24 +94,24 @@ public static class ProjectUtil
         var max_x = vertices.Select(v => v.x).Max();
         var max_y = vertices.Select(v => v.y).Max();
 
+        // bounding box calculation
+        var center_x = (min_x + max_x) / 2;
+        var center_y = (min_y + max_y) / 2;
+        var size = Mathf.Max(max_x - min_x, max_y - min_y);
+
+        // min max scale
         vertices = vertices.Select(v =>
         {
             return new Vector2(
-                2.0f * (v.x - min_x) / (max_x - min_x) - 1.0f,
-                2.0f * (v.y - min_y) / (max_y - min_y) - 1.0f);
+                1.0f * (v.x - center_x) / (size),
+                1.0f * (v.y - center_y) / (size));
         }).ToArray();
-
-        // rotation
-        vertices = vertices.Select(v => (Vector2)(Quaternion.Euler(0, 0, rotation) * v));
 
         //scale
         vertices = vertices.Select(v => v * scale);
 
-        // Make sure the shape is in clockwise order
-        // if ((vertices.ElementAt(1).x - vertices.ElementAt(0).x) * (vertices.ElementAt(1).y + vertices.ElementAt(0).y) < 0)
-        // {
-        //     vertices = vertices.Reverse().ToArray();
-        // }
+        // rotation
+        vertices = vertices.Select(v => (Vector2)(Quaternion.Euler(0, 0, rotation) * v));
 
         return new ShapeData(vertices.ToArray(), pathCreator.path, t);
     }
