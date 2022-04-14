@@ -340,22 +340,40 @@ public class Extruder : MonoBehaviour
 
     private static (Color32[], float, float) AssignColorsToSide(ShapeData[] shapes, Color32 color1, Color32 color2, bool global)
     {
-        var magnitudes = shapes
-                        .SelectMany(s => s.Get2DPoints())
-                        .Select(v => v.magnitude);
-        var max = magnitudes.Max();
-        var min = magnitudes.Min();
-
-        if (global)
+        // Find global max
+        var global_max = 0f;
+        for (int i = 0; i < shapes.Length; i++)
         {
-            magnitudes = magnitudes
-                            .Select(t => (t - min) / (max - min));
+            var shape = shapes[i].Get3DPoints();
+            var center = BoundingBoxCenter(shape);
+            var shape_magnitudes = shape.Select(v => (v - center).magnitude);
+            var shape_max = shape_magnitudes.Max();
+
+            if (shape_max > global_max)
+            {
+                global_max = shape_max;
+            }
         }
 
+        // find the correct magnitudes
+        var color_array = new float[shapes.Length][];
+        for (int i = 0; i < shapes.Length; i++)
+        {
+            var shape = shapes[i].Get3DPoints();
+            var center = BoundingBoxCenter(shape);
+            var shape_magnitudes = shape.Select(v => (v - center).magnitude);
+            var shape_max = shape_magnitudes.Max();
+            var max = global ? global_max : shape_max;
+
+            var t_values = shape_magnitudes.Select(t => (t) / (max));
+            color_array[i] = t_values.ToArray();
+        }
+
+        var magnitudes = ConcatArrays(color_array);
         var colors = magnitudes
                             .Select(t => Color32.Lerp(color1, color2, t))
                             .ToArray();
-        return (colors, min, max);
+        return (colors, 0, global_max);
     }
 
     private static Color32[] AssignColorsToEnds(Vector3[] points, Color32 color1, Color32 color2, float globalMin, float globalMax, bool global)
